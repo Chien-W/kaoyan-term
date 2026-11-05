@@ -20,6 +20,7 @@ import (
 var (
 	flagStart     = flag.Int("start", -1, "start from specific index (0-6356)")
 	flagWrongOnly = flag.Bool("wrong", false, "practice error log tokens only")
+	flagShowDef   = flag.Bool("def", true, "show business expression definition hint in logs")
 )
 
 const (
@@ -54,6 +55,7 @@ func main() {
 		prog.CurrentIndex = *flagStart
 	}
 
+	showDef := *flagShowDef
 	player := audio.NewPlayer(2) // 2: US Accent
 
 	var words []vocab.Word
@@ -78,6 +80,7 @@ func main() {
 	}
 
 	restoreTerminal := func(clear bool) {
+		player.Stop()
 		_ = term.Restore(int(os.Stdin.Fd()), oldState)
 		if clear {
 			fmt.Print("\033[H\033[2J\033[3J")
@@ -101,7 +104,7 @@ func main() {
 	// Wipe screen completely on start
 	fmt.Print("\033[H\033[2J\033[3J")
 
-	// Print dense startup microservice logs (100% English engineering logs)
+	// Print dense startup microservice logs
 	now := time.Now()
 	printLog(now.Add(-2*time.Second), "INFO", "server/bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 max_workers=64")
 	printLog(now.Add(-1600*time.Millisecond), "INFO", "storage/postgres.go:78", "connected to postgres cluster pool_size=20 latency_ms=1.12")
@@ -131,12 +134,12 @@ func main() {
 			continue
 		}
 
-		// Play word in headphones
-		player.PlayAsync(target)
+		// Play English + Chinese definition in headphones
+		player.PlayAsync(target, currentWord.Definition)
 
 		input := ""
 		nonce++
-		renderPromptLine(nonce, input)
+		renderPromptLine(nonce, currentWord, input, showDef)
 
 		startTime := time.Now()
 		wordError := false
@@ -157,9 +160,16 @@ func main() {
 				return
 			}
 
-			// Space (32) -> Replay Audio into headphones
+			// Ctrl+V (22) -> Toggle on-screen definition visibility
+			if b == 22 {
+				showDef = !showDef
+				renderPromptLine(nonce, currentWord, input, showDef)
+				continue
+			}
+
+			// Space (32) -> Replay Bilingual Audio into headphones
 			if b == 32 {
-				player.PlayAsync(target)
+				player.PlayAsync(target, currentWord.Definition)
 				continue
 			}
 
@@ -167,7 +177,7 @@ func main() {
 			if b == 127 || b == 8 {
 				if len(input) > 0 {
 					input = input[:len(input)-1]
-					renderPromptLine(nonce, input)
+					renderPromptLine(nonce, currentWord, input, showDef)
 				}
 				continue
 			}
@@ -177,7 +187,7 @@ func main() {
 				if len(input) < len(target) {
 					input += string(target[len(input)])
 					wordError = true
-					renderPromptLine(nonce, input)
+					renderPromptLine(nonce, currentWord, input, showDef)
 					if input == target {
 						goto WordCompleted
 					}
@@ -195,7 +205,7 @@ func main() {
 
 				if expectedChar != "" && charTyped == expectedChar {
 					input += charTyped
-					renderPromptLine(nonce, input)
+					renderPromptLine(nonce, currentWord, input, showDef)
 
 					if input == target {
 						goto WordCompleted
@@ -224,10 +234,10 @@ func main() {
 		fmt.Printf("\r\n%s%s\t%sINFO%s\tingress/auth.go:72\tsession handshake verified nonce=%d status=200 latency_ms=%d\r\n",
 			colorGray, ts, colorBlue, colorReset, nonce, ms)
 
-		player.PlayAsync(target)
-		time.Sleep(100 * time.Millisecond)
+		// Brief pause between words
+		time.Sleep(120 * time.Millisecond)
 
-		// Print realistic background ambient log
+		// Print realistic background ambient log occasionally
 		if rand.Float32() < 0.35 {
 			pattern := ambientLogs[rand.Intn(len(ambientLogs))]
 			logMsg := fmt.Sprintf(pattern, rand.Intn(50000))
@@ -246,10 +256,19 @@ func printLog(t time.Time, level, caller, msg string) {
 	fmt.Printf("%s%s\t%s%s%s\t%s\t%s\r\n", colorGray, ts, colorBlue, level, colorReset, caller, msg)
 }
 
-func renderPromptLine(nonce int, input string) {
+func renderPromptLine(nonce int, w vocab.Word, input string, showDef bool) {
 	ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
 	fmt.Print("\033[2K\r") // Clear current line
-	// Incomprehensible backend log line: 100% English
-	fmt.Printf("%s%s\t%sDEBUG%s\tingress/auth.go:64\tverifying session payload nonce=%d hash_token=%s%s%s%s█%s",
-		colorGray, ts, colorYellow, colorReset, nonce, colorCyan, input, colorReset, colorGreen, colorReset)
+
+	if showDef {
+		cleanDef := strings.ReplaceAll(w.Definition, "\n", " ")
+		if len(cleanDef) > 36 {
+			cleanDef = cleanDef[:36] + ".."
+		}
+		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tevaluating rule expr=%q token=%s%s%s%s█%s",
+			colorGray, ts, colorYellow, colorReset, cleanDef, colorCyan, input, colorReset, colorGreen, colorReset)
+	} else {
+		fmt.Printf("%s%s\t%sDEBUG%s\tingress/auth.go:64\tverifying session payload nonce=%d token=%s%s%s%s█%s",
+			colorGray, ts, colorYellow, colorReset, nonce, colorCyan, input, colorReset, colorGreen, colorReset)
+	}
 }
