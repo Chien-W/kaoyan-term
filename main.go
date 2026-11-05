@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	flagStealth   = flag.Bool("stealth", false, "启动伪装模式（输出模拟为 go test 单元测试输出）")
+	flagStealth   = flag.Bool("stealth", false, "启动伪装模式（输出模拟为真实后端 go test 日志）")
 	flagDictation = flag.Bool("dict", false, "启动听力默写模式（隐藏英文，纯凭听力与中文拼写）")
 	flagWrongOnly = flag.Bool("wrong", false, "仅背诵错题本中的高频难词")
 	flagStart     = flag.Int("start", -1, "从指定单词序号开始（0-6356）")
@@ -29,7 +29,6 @@ const (
 	colorYellow = "\033[33m"
 	colorCyan   = "\033[36m"
 	colorGray   = "\033[90m"
-	colorRed    = "\033[31m"
 	colorBold   = "\033[1m"
 )
 
@@ -38,7 +37,7 @@ func main() {
 
 	bank, err := vocab.LoadBank()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "加载考研词库失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "加载词库失败: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -55,7 +54,6 @@ func main() {
 
 	player := audio.NewPlayer(2) // 2: 美音, 1: 英音
 
-	// Filter words if wrong only
 	var words []vocab.Word
 	if *flagWrongOnly {
 		for _, w := range bank.Words {
@@ -64,7 +62,7 @@ func main() {
 			}
 		}
 		if len(words) == 0 {
-			fmt.Println("错题本目前是空的！太棒了，请先正常背诵新词。")
+			fmt.Println("错题本目前是空的！请先正常练习。")
 			return
 		}
 	} else {
@@ -78,15 +76,13 @@ func main() {
 		return
 	}
 
-	// Restore terminal on exit
 	restoreTerminal := func(clear bool) {
 		_ = term.Restore(int(os.Stdin.Fd()), oldState)
 		if clear {
-			fmt.Print("\033[2J\033[H") // Clear screen
+			fmt.Print("\033[2J\033[H")
 		}
 	}
 
-	// Catch SIGINT / SIGTERM for safe cleanup
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -101,18 +97,20 @@ func main() {
 		prog.Save()
 	}()
 
-	// Game loop
 	currentIndex := prog.CurrentIndex
 	if currentIndex >= len(words) {
 		currentIndex = 0
 	}
+
+	// Clear full screen initially
+	fmt.Print("\033[2J\033[H")
 
 	buf := make([]byte, 3)
 
 	for {
 		if currentIndex >= len(words) {
 			restoreTerminal(false)
-			fmt.Println("\n恭喜！你已经完成了全套考研词库的复习！")
+			fmt.Println("\n已完成当前单词库复习！")
 			return
 		}
 
@@ -123,16 +121,14 @@ func main() {
 			continue
 		}
 
-		// Play audio when word appears
 		player.PlayAsync(target)
 
 		input := ""
-		renderScreen(prog, currentWord, currentIndex, len(words), input, player.IsMuted())
+		renderWord(prog, currentWord, currentIndex, len(words), input, true)
 
 		startTime := time.Now()
 		wordError := false
 
-		// Input loop for this word
 		for {
 			n, err := os.Stdin.Read(buf)
 			if err != nil || n == 0 {
@@ -141,29 +137,29 @@ func main() {
 
 			b := buf[0]
 
-			// Ctrl+C (3) or Esc (27) -> Boss Key: instant clear and exit
-			if b == 3 || b == 27 {
+			// Esc (27) or Ctrl+C (3) -> Boss Key: instant clear and exit
+			if b == 27 || b == 3 {
 				restoreTerminal(true)
 				prog.CurrentIndex = currentIndex
 				prog.Save()
 				return
 			}
 
-			// Ctrl+S (19) -> Toggle Stealth Mode
-			if b == 19 {
+			// Ctrl+T (20) -> Toggle Stealth Mode (clears screen completely)
+			if b == 20 {
 				prog.StealthMode = !prog.StealthMode
-				renderScreen(prog, currentWord, currentIndex, len(words), input, player.IsMuted())
+				fmt.Print("\033[2J\033[H")
+				renderWord(prog, currentWord, currentIndex, len(words), input, true)
 				continue
 			}
 
 			// Ctrl+D (4) -> Toggle Dictation Mode
 			if b == 4 {
 				prog.DictationMode = !prog.DictationMode
-				renderScreen(prog, currentWord, currentIndex, len(words), input, player.IsMuted())
+				renderWord(prog, currentWord, currentIndex, len(words), input, true)
 				continue
 			}
 
-			// Ctrl+M (13 is enter, 14 is ctrl+n; ctrl+m is carriage return in raw mode, so use Tab / Ctrl+P for sound)
 			// Space (32) -> Replay Audio
 			if b == 32 {
 				player.PlayAsync(target)
@@ -174,7 +170,7 @@ func main() {
 			if b == 127 || b == 8 {
 				if len(input) > 0 {
 					input = input[:len(input)-1]
-					renderScreen(prog, currentWord, currentIndex, len(words), input, player.IsMuted())
+					renderWord(prog, currentWord, currentIndex, len(words), input, false)
 				}
 				continue
 			}
@@ -184,7 +180,7 @@ func main() {
 				if len(input) < len(target) {
 					input += string(target[len(input)])
 					wordError = true
-					renderScreen(prog, currentWord, currentIndex, len(words), input, player.IsMuted())
+					renderWord(prog, currentWord, currentIndex, len(words), input, false)
 					if input == target {
 						goto WordCompleted
 					}
@@ -202,16 +198,14 @@ func main() {
 
 				if expectedChar != "" && charTyped == expectedChar {
 					input += charTyped
-					renderScreen(prog, currentWord, currentIndex, len(words), input, player.IsMuted())
+					renderWord(prog, currentWord, currentIndex, len(words), input, false)
 
 					if input == target {
 						goto WordCompleted
 					}
 				} else {
-					// Typed wrong letter
 					wordError = true
-					// Flash error or ignore
-					fmt.Print("\a") // terminal bell
+					fmt.Print("\a") // bell
 				}
 			}
 		}
@@ -225,14 +219,13 @@ func main() {
 		}
 
 		if prog.StealthMode {
-			fmt.Printf("\r\n--- PASS: TestKaoyanVocab/NETEM_2027/Word_%04d (%.2fs)\r\n", currentIndex+1, elapsed)
+			fmt.Printf("\r\n--- PASS: TestMetricCollector/QueryPoint_%04d (%.2fs)\r\n", currentIndex+1, elapsed)
 		} else {
 			fmt.Printf("\r\n%s✔ PASS! (%.2fs)%s\r\n", colorGreen, elapsed, colorReset)
 		}
 
-		// Replay audio once more upon completion
 		player.PlayAsync(target)
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(180 * time.Millisecond)
 
 		currentIndex++
 		prog.CurrentIndex = currentIndex
@@ -240,7 +233,7 @@ func main() {
 	}
 }
 
-func renderScreen(prog *state.Progress, w vocab.Word, idx, total int, input string, isMuted bool) {
+func renderWord(prog *state.Progress, w vocab.Word, idx, total int, input string, isNewWord bool) {
 	phonetic := w.USPhonetic
 	if phonetic == "" {
 		phonetic = w.UKPhonetic
@@ -252,32 +245,29 @@ func renderScreen(prog *state.Progress, w vocab.Word, idx, total int, input stri
 	target := strings.ToLower(w.Word)
 
 	if prog.StealthMode {
-		// Go Test Disguise Mode
-		fmt.Print("\033[2K\r") // Clear current line
-		fmt.Printf("=== RUN   TestKaoyanVocab/NETEM_2027/Word_%04d\r\n", idx+1)
-		fmt.Printf("    vocab_test.go:%d: [def] %s  [ipa] %s\r\n", 40+idx%50, w.Definition, phonetic)
-		if len(w.Phrases) > 0 {
-			fmt.Printf("    vocab_test.go:%d: [collocations] %s\r\n", 41+idx%50, strings.Join(w.Phrases[:1], "; "))
+		// Realistic Go Test Disguise Mode (No Kaoyan/NETEM/Vocab keywords!)
+		if isNewWord {
+			fmt.Printf("=== RUN   TestMetricCollector/QueryPoint_%04d\r\n", idx+1)
+			fmt.Printf("    collector_test.go:%d: [param] %s\r\n", 40+idx%30, w.Definition)
+			fmt.Printf("    collector_test.go:%d: [token] ", 41+idx%30)
 		}
-		// Input line
-		fmt.Printf("    vocab_test.go:%d: [input] %s%s%s", 42+idx%50, colorCyan, input, colorReset)
+		// Redraw only the input line
+		fmt.Printf("\r    collector_test.go:%d: [token] %s%s%s", 41+idx%30, colorCyan, input, colorReset)
 		return
 	}
 
-	// Normal Clean Terminal Mode
-	fmt.Print("\033[2J\033[H") // Clear screen and move cursor to home
+	// Normal Clean Code UI
+	fmt.Print("\033[2J\033[H") // Clear entire screen
 
-	// Status header
 	dictModeStr := ""
 	if prog.DictationMode {
-		dictModeStr = fmt.Sprintf(" %s[听音默写模式]%s", colorYellow, colorReset)
+		dictModeStr = fmt.Sprintf(" %s[听音默写]%s", colorYellow, colorReset)
 	}
 
-	fmt.Printf("%s[NETEM-2027 考研词汇]%s #%d/%d  今日已背: %d%s\r\n",
+	fmt.Printf("%s[VOCAB-2027]%s #%d/%d  今日已背: %d%s\r\n",
 		colorBold, colorReset, idx+1, total, prog.DailyCount, dictModeStr)
 	fmt.Printf("%s------------------------------------------------------------%s\r\n", colorGray, colorReset)
 
-	// Word display (in dictation mode, hide target letters until typed)
 	displayWord := ""
 	for i := 0; i < len(target); i++ {
 		if i < len(input) {
@@ -293,15 +283,13 @@ func renderScreen(prog *state.Progress, w vocab.Word, idx, total int, input stri
 
 	fmt.Printf("单词拼写: %s\r\n", displayWord)
 	fmt.Printf("国际音标: %s%s%s\r\n", colorCyan, phonetic, colorReset)
-	fmt.Printf("大纲释义: %s%s%s\r\n", colorBold, w.Definition, colorReset)
+	fmt.Printf("释义内容: %s%s%s\r\n", colorBold, w.Definition, colorReset)
 
 	if len(w.Phrases) > 0 {
-		fmt.Printf("%s常用搭配: %s%s\r\n", colorGray, strings.Join(w.Phrases[:2], " | "), colorReset)
+		fmt.Printf("%s真题短语: %s%s\r\n", colorGray, strings.Join(w.Phrases[:2], " | "), colorReset)
 	}
 
 	fmt.Printf("%s------------------------------------------------------------%s\r\n", colorGray, colorReset)
 	fmt.Printf("键入: %s%s%s", colorGreen, input, colorReset)
-
-	// Bottom shortcuts hint
-	fmt.Printf("\r\n\r\n%s[空格]:重听发音 | [Tab/?]:提示字母 | [Ctrl+S]:切换单元测试伪装 | [Esc/Ctrl+C]:老板键清屏%s\r\n", colorGray, colorReset)
+	fmt.Printf("\r\n\r\n%s[空格]:重播语音 | [Tab/?]:提示字母 | [Ctrl+T]:单元测试伪装 | [Esc/Ctrl+C]:老板键清屏%s\r\n", colorGray, colorReset)
 }
