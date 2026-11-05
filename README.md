@@ -1,21 +1,19 @@
 # kaoyan-term
 
-专门为工位开发的 2027 考研英语终端盲打与听写工具。
+Terminal-based continuous vocabulary dictation tool disguised as an authentic Go backend microservice log stream.
 
-## 设计理念
+## Features
 
-全终端伪装为真实的 Go 后端微服务日志流（Zap/Logrus 结构化日志）。
+- **Zero Chinese, Zero Vocabulary Spoilers**: Screen is 100% pure dense technical backend logs (Raft consensus, WAL flush, connection pools, gRPC stream handshakes).
+- **Audio-Driven Dictation**: The word is pronounced purely into your earphones.
+- **In-Place Input**: You type the word into the log's `hash_token=...` field.
+- **Realistic Ambient Logs**: Interspersed with authentic background heartbeat and compaction logs.
+- **Instant Clean Boss Key**: `Esc` or `Ctrl+C` completely wipes the terminal and scrollback buffer.
 
-- **无任何敏感词**：全屏绝无“考研”、“大纲”、“背单词”、“测试用例”或大字标题。
-- **高密度微服务日志流**：外观完全呈现为生产微服务的真实结构化日志输出（时间戳、调用位置、INFO/DEBUG 级别、规则匹配、耗时与心跳）。
-- **键盘肌肉记忆**：根据日志中的 `expr="..."` 业务表达式，键盘盲打拼写出对应英文 token。
-- **耳机真人发音**：单词切换或拼写完成时自动在耳机播放真人发音，按 `[空格]` 随时重听。
-- **秒级老板键**：按 `Esc` 或 `Ctrl+C` 立即完全清空终端屏幕与回滚缓冲区，无任何残留。
+## Controls
 
-## 快捷键
-
-- `[字母键]`：输入目标 token
-- `[空格]`：重播当前单词真人发音
-- `[Tab]` 或 `[?]`：提示下一个字母
-- `[Backspace]`：回退删除
-- `[Esc]` 或 `[Ctrl+C]`：老板键，瞬间清屏退出
+- `[Letters]`: Type token from earphone audio
+- `[Space]`: Replay pronunciation in earphones
+- `[Tab]` or `[?]`: Hint next letter
+- `[Backspace]`: Delete character
+- `[Esc]` or `[Ctrl+C]`: Instant clean exit

@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	flagStart     = flag.Int("start", -1, "从指定单词序号开始（0-6356）")
-	flagWrongOnly = flag.Bool("wrong", false, "仅复习错题本中的词汇")
+	flagStart     = flag.Int("start", -1, "start from specific index (0-6356)")
+	flagWrongOnly = flag.Bool("wrong", false, "practice error log tokens only")
 )
 
 const (
@@ -31,11 +31,13 @@ const (
 	colorGray   = "\033[90m"
 )
 
-var dummyHeartbeats = []string{
-	"pipeline/worker.go:104\tbatch buffer flushed stream=telemetry_raw events=128 lag=0",
-	"cluster/heartbeat.go:52\tcluster node health ping ack status=200 latency_ms=1.4",
-	"storage/pool.go:88\tconnection pool health check active=12 idle=8 max=32",
-	"gateway/router.go:145\tingress rate limit bucket refreshed tokens=5000",
+var ambientLogs = []string{
+	"cluster/raft.go:184\tcommit log entry index=%d term=14 leader_id=\"node-10.200.25.165\"",
+	"storage/wal.go:92\tsync wal segment flushed_bytes=16384 duration_us=182",
+	"telemetry/metric.go:142\thistogram bucket recorded metric=\"net_ingress_bytes\" p99_latency_ms=1.4",
+	"network/pool.go:68\treused idle tcp keepalive socket fd=%d remote=\"10.200.25.165:31805\"",
+	"pipeline/worker.go:119\tconsumer partition rebalance state=stable assigned=[0,1,2,3]",
+	"cache/redis.go:54\tkey buffer evicted namespace=\"alarm_cache\" freed_keys=128",
 }
 
 func main() {
@@ -43,7 +45,7 @@ func main() {
 
 	bank, err := vocab.LoadBank()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "初始化失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -52,7 +54,7 @@ func main() {
 		prog.CurrentIndex = *flagStart
 	}
 
-	player := audio.NewPlayer(2) // 2: 美音
+	player := audio.NewPlayer(2) // 2: US Accent
 
 	var words []vocab.Word
 	if *flagWrongOnly {
@@ -62,24 +64,23 @@ func main() {
 			}
 		}
 		if len(words) == 0 {
-			fmt.Println("当前错题本为空。")
+			fmt.Println("error book is empty.")
 			return
 		}
 	} else {
 		words = bank.Words
 	}
 
-	// Setup raw terminal mode
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "终端模式初始化失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to init raw terminal: %v\n", err)
 		return
 	}
 
 	restoreTerminal := func(clear bool) {
 		_ = term.Restore(int(os.Stdin.Fd()), oldState)
 		if clear {
-			fmt.Print("\033[H\033[2J\033[3J") // Completely wipe screen and scrollback
+			fmt.Print("\033[H\033[2J\033[3J")
 		}
 	}
 
@@ -97,15 +98,16 @@ func main() {
 		prog.Save()
 	}()
 
-	// Clear screen completely once at startup
+	// Wipe screen completely on start
 	fmt.Print("\033[H\033[2J\033[3J")
 
-	// Print realistic microservice startup logs
+	// Print dense startup microservice logs (100% English engineering logs)
 	now := time.Now()
-	printStartupLog(now.Add(-2 * time.Second), "INFO", "server/bootstrap.go:42", "initializing metric collector worker_pool=32 max_inflight=1000")
-	printStartupLog(now.Add(-1500 * time.Millisecond), "INFO", "storage/postgres.go:78", "connected to primary database pool_size=20 latency_ms=1.1")
-	printStartupLog(now.Add(-800 * time.Millisecond), "INFO", "pipeline/stream.go:94", "kafka consumer group rebalanced partition_count=8")
-	printStartupLog(now.Add(-200 * time.Millisecond), "INFO", "dispatch/handler.go:110", "rule evaluation engine started mode=streaming")
+	printLog(now.Add(-2*time.Second), "INFO", "server/bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 max_workers=64")
+	printLog(now.Add(-1600*time.Millisecond), "INFO", "storage/postgres.go:78", "connected to postgres cluster pool_size=20 latency_ms=1.12")
+	printLog(now.Add(-1100*time.Millisecond), "INFO", "cluster/raft.go:94", "raft node initialized cluster_id=1413 role=follower")
+	printLog(now.Add(-600*time.Millisecond), "INFO", "pipeline/stream.go:120", "kafka partition stream consumer group active partitions=8")
+	printLog(now.Add(-200*time.Millisecond), "INFO", "dispatch/handler.go:88", "rule execution pipeline initialized mode=streaming")
 
 	currentIndex := prog.CurrentIndex
 	if currentIndex >= len(words) {
@@ -113,6 +115,7 @@ func main() {
 	}
 
 	buf := make([]byte, 3)
+	nonce := 9840 + currentIndex
 
 	for {
 		if currentIndex >= len(words) {
@@ -128,10 +131,12 @@ func main() {
 			continue
 		}
 
+		// Play word in headphones
 		player.PlayAsync(target)
 
 		input := ""
-		renderLogLine(currentWord, input)
+		nonce++
+		renderPromptLine(nonce, input)
 
 		startTime := time.Now()
 		wordError := false
@@ -152,7 +157,7 @@ func main() {
 				return
 			}
 
-			// Space (32) -> Replay Audio
+			// Space (32) -> Replay Audio into headphones
 			if b == 32 {
 				player.PlayAsync(target)
 				continue
@@ -162,7 +167,7 @@ func main() {
 			if b == 127 || b == 8 {
 				if len(input) > 0 {
 					input = input[:len(input)-1]
-					renderLogLine(currentWord, input)
+					renderPromptLine(nonce, input)
 				}
 				continue
 			}
@@ -172,7 +177,7 @@ func main() {
 				if len(input) < len(target) {
 					input += string(target[len(input)])
 					wordError = true
-					renderLogLine(currentWord, input)
+					renderPromptLine(nonce, input)
 					if input == target {
 						goto WordCompleted
 					}
@@ -190,7 +195,7 @@ func main() {
 
 				if expectedChar != "" && charTyped == expectedChar {
 					input += charTyped
-					renderLogLine(currentWord, input)
+					renderPromptLine(nonce, input)
 
 					if input == target {
 						goto WordCompleted
@@ -209,23 +214,25 @@ func main() {
 			prog.RecordSuccess(target)
 		}
 
-		// Print realistic match success log
 		ms := elapsed.Milliseconds()
 		if ms == 0 {
-			ms = 18 + int64(rand.Intn(40))
+			ms = 14 + int64(rand.Intn(35))
 		}
+
+		// Print verified log (pure English log)
 		ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
-		fmt.Printf("\r\n%s%s\t%sINFO%s\tevaluator/matcher.go:94\trule token verified status=200 target=%q latency_ms=%d\r\n",
-			colorGray, ts, colorBlue, colorReset, target, ms)
+		fmt.Printf("\r\n%s%s\t%sINFO%s\tingress/auth.go:72\tsession handshake verified nonce=%d status=200 latency_ms=%d\r\n",
+			colorGray, ts, colorBlue, colorReset, nonce, ms)
 
 		player.PlayAsync(target)
-		time.Sleep(120 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
-		// Occasionally print a background heartbeat log line
-		if rand.Float32() < 0.25 {
-			hb := dummyHeartbeats[rand.Intn(len(dummyHeartbeats))]
+		// Print realistic background ambient log
+		if rand.Float32() < 0.35 {
+			pattern := ambientLogs[rand.Intn(len(ambientLogs))]
+			logMsg := fmt.Sprintf(pattern, rand.Intn(50000))
 			hbTs := time.Now().Format("2006-01-02T15:04:05.000-0700")
-			fmt.Printf("%s%s\t%sINFO%s\t%s\r\n", colorGray, hbTs, colorBlue, colorReset, hb)
+			fmt.Printf("%s%s\t%sINFO%s\t%s\r\n", colorGray, hbTs, colorBlue, colorReset, logMsg)
 		}
 
 		currentIndex++
@@ -234,19 +241,15 @@ func main() {
 	}
 }
 
-func printStartupLog(t time.Time, level, caller, msg string) {
+func printLog(t time.Time, level, caller, msg string) {
 	ts := t.Format("2006-01-02T15:04:05.000-0700")
 	fmt.Printf("%s%s\t%s%s%s\t%s\t%s\r\n", colorGray, ts, colorBlue, level, colorReset, caller, msg)
 }
 
-func renderLogLine(w vocab.Word, input string) {
+func renderPromptLine(nonce int, input string) {
 	ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
-	cleanDef := strings.ReplaceAll(w.Definition, "\n", " ")
-	if len(cleanDef) > 40 {
-		cleanDef = cleanDef[:40] + "..."
-	}
-
 	fmt.Print("\033[2K\r") // Clear current line
-	fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/matcher.go:88\tevaluating expr=%q token=%s%s%s%s█%s",
-		colorGray, ts, colorYellow, colorReset, cleanDef, colorCyan, input, colorReset, colorGreen, colorReset)
+	// Incomprehensible backend log line: 100% English
+	fmt.Printf("%s%s\t%sDEBUG%s\tingress/auth.go:64\tverifying session payload nonce=%d hash_token=%s%s%s%s█%s",
+		colorGray, ts, colorYellow, colorReset, nonce, colorCyan, input, colorReset, colorGreen, colorReset)
 }
