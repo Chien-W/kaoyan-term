@@ -101,16 +101,9 @@ func main() {
 		prog.Save()
 	}()
 
-	// Wipe screen completely on start
+	// Wipe screen and scrollback completely on start
 	fmt.Print("\033[H\033[2J\033[3J")
-
-	// Print dense startup microservice logs
-	now := time.Now()
-	printLog(now.Add(-2*time.Second), "INFO", "server/bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 max_workers=64")
-	printLog(now.Add(-1600*time.Millisecond), "INFO", "storage/postgres.go:78", "connected to postgres cluster pool_size=20 latency_ms=1.12")
-	printLog(now.Add(-1100*time.Millisecond), "INFO", "cluster/raft.go:94", "raft node initialized cluster_id=1413 role=follower")
-	printLog(now.Add(-600*time.Millisecond), "INFO", "pipeline/stream.go:120", "kafka partition stream consumer group active partitions=8")
-	printLog(now.Add(-200*time.Millisecond), "INFO", "dispatch/handler.go:88", "rule execution pipeline initialized mode=streaming")
+	printStartupLogs()
 
 	currentIndex := prog.CurrentIndex
 	if currentIndex >= len(words) {
@@ -152,7 +145,7 @@ func main() {
 
 			b := buf[0]
 
-			// Esc (27) or Ctrl+C (3) -> Boss Key: instant wipe
+			// Esc (27) or Ctrl+C (3) -> Boss Key: instant full wipe
 			if b == 27 || b == 3 {
 				restoreTerminal(true)
 				prog.CurrentIndex = currentIndex
@@ -160,9 +153,14 @@ func main() {
 				return
 			}
 
-			// Ctrl+V (22) -> Toggle on-screen definition visibility
+			// Ctrl+V (22) -> Toggle definition visibility and wipe scrollback
 			if b == 22 {
 				showDef = !showDef
+				if !showDef {
+					// Purge all screen and scrollback immediately so ZERO Chinese is visible anywhere
+					fmt.Print("\033[H\033[2J\033[3J")
+					printStartupLogs()
+				}
 				renderPromptLine(nonce, currentWord, input, showDef)
 				continue
 			}
@@ -229,13 +227,20 @@ func main() {
 			ms = 14 + int64(rand.Intn(35))
 		}
 
-		// Print verified log (pure English log)
 		ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
-		fmt.Printf("\r\n%s%s\t%sINFO%s\tingress/auth.go:72\tsession handshake verified nonce=%d status=200 latency_ms=%d\r\n",
+
+		// OVERWRITE the active line with pure English log before scrolling up!
+		// This guarantees that NO Chinese ever scrolls into the terminal history!
+		fmt.Print("\033[2K\r")
+		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tprocessed token_id=%d token=%q\r\n",
+			colorGray, ts, colorYellow, colorReset, nonce, target)
+
+		// Print verified log (pure English log)
+		fmt.Printf("%s%s\t%sINFO%s\tingress/auth.go:72\tsession handshake verified nonce=%d status=200 latency_ms=%d\r\n",
 			colorGray, ts, colorBlue, colorReset, nonce, ms)
 
 		// Brief pause between words
-		time.Sleep(120 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		// Print realistic background ambient log occasionally
 		if rand.Float32() < 0.35 {
@@ -249,6 +254,15 @@ func main() {
 		prog.CurrentIndex = currentIndex
 		prog.Save()
 	}
+}
+
+func printStartupLogs() {
+	now := time.Now()
+	printLog(now.Add(-2*time.Second), "INFO", "server/bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 max_workers=64")
+	printLog(now.Add(-1600*time.Millisecond), "INFO", "storage/postgres.go:78", "connected to postgres cluster pool_size=20 latency_ms=1.12")
+	printLog(now.Add(-1100*time.Millisecond), "INFO", "cluster/raft.go:94", "raft node initialized cluster_id=1413 role=follower")
+	printLog(now.Add(-600*time.Millisecond), "INFO", "pipeline/stream.go:120", "kafka partition stream consumer group active partitions=8")
+	printLog(now.Add(-200*time.Millisecond), "INFO", "dispatch/handler.go:88", "rule execution pipeline initialized mode=streaming")
 }
 
 func printLog(t time.Time, level, caller, msg string) {
