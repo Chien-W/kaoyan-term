@@ -14,7 +14,7 @@ type WordRecord struct {
 	ErrorCount  int       `json:"error_count"`
 	LastSeen    time.Time `json:"last_seen"`
 	NextReview  time.Time `json:"next_review"`
-	Stage       int       `json:"stage"` // 0: new, 1: 1d, 2: 2d, 3: 4d, 4: 7d, 5: 15d, 6: mastered
+	Stage       int       `json:"stage"` // 0: new, 1: 1d, 2: 2d, 3: 4d, 4: 7d, 5: 15d, 6: 30d, 99: permanently mastered
 }
 
 type StudyProgress struct {
@@ -73,6 +73,29 @@ func (p *StudyProgress) Save() error {
 	return os.WriteFile(stateFilePath(), data, 0644)
 }
 
+// MarkMastered permanently kills a simple word (斩词/秒杀)
+func (p *StudyProgress) MarkMastered(word string) {
+	now := time.Now()
+	rec, exists := p.Records[word]
+	if !exists {
+		rec = &WordRecord{
+			Word: word,
+		}
+		p.Records[word] = rec
+	}
+	rec.LastSeen = now
+	rec.Stage = 99                                        // 99 = permanent mastered
+	rec.NextReview = now.Add(3650 * 24 * time.Hour)       // 10 years later
+	delete(p.WrongWords, word)
+}
+
+func (p *StudyProgress) IsMastered(word string) bool {
+	if rec, ok := p.Records[word]; ok {
+		return rec.Stage >= 99
+	}
+	return false
+}
+
 // RecordSuccess updates spaced repetition curve
 func (p *StudyProgress) RecordSuccess(word string, isReview bool) {
 	now := time.Now()
@@ -94,6 +117,11 @@ func (p *StudyProgress) RecordSuccess(word string, isReview bool) {
 		p.DailyNewCount++
 	}
 
+	// If already permanently mastered, keep it
+	if rec.Stage >= 99 {
+		return
+	}
+
 	// Spaced repetition intervals: 1d -> 2d -> 4d -> 7d -> 15d -> 30d
 	intervals := []time.Duration{
 		24 * time.Hour,
@@ -111,7 +139,6 @@ func (p *StudyProgress) RecordSuccess(word string, isReview bool) {
 		rec.NextReview = now.Add(45 * 24 * time.Hour)
 	}
 
-	// Remove from wrong words if successful
 	if count, ok := p.WrongWords[word]; ok {
 		if count <= 1 {
 			delete(p.WrongWords, word)
@@ -135,17 +162,17 @@ func (p *StudyProgress) RecordError(word string) {
 
 	rec.LastSeen = now
 	rec.ErrorCount++
-	rec.Stage = 1                                // Reset to stage 1 (review tomorrow)
-	rec.NextReview = now.Add(12 * time.Hour)     // Due soon
+	rec.Stage = 1
+	rec.NextReview = now.Add(12 * time.Hour)
 	p.WrongWords[word]++
 }
 
-// GetDueReviewWords returns words that have reached their review interval
+// GetDueReviewWords returns words that have reached their review interval (excluding permanently mastered)
 func (p *StudyProgress) GetDueReviewWords() []string {
 	now := time.Now()
 	var due []string
 	for word, rec := range p.Records {
-		if !rec.NextReview.IsZero() && now.After(rec.NextReview) {
+		if rec.Stage < 99 && !rec.NextReview.IsZero() && now.After(rec.NextReview) {
 			due = append(due, word)
 		}
 	}
@@ -155,6 +182,13 @@ func (p *StudyProgress) GetDueReviewWords() []string {
 // PrintDashboard prints study stats in plain text
 func (p *StudyProgress) PrintDashboard(totalWords int) {
 	learnedCount := len(p.Records)
+	masteredCount := 0
+	for _, rec := range p.Records {
+		if rec.Stage >= 99 {
+			masteredCount++
+		}
+	}
+
 	remaining := totalWords - learnedCount
 	if remaining < 0 {
 		remaining = 0
@@ -169,6 +203,7 @@ func (p *StudyProgress) PrintDashboard(totalWords int) {
 	fmt.Println("==================================================")
 	fmt.Printf("• 词库大纲总量:   %d 词\n", totalWords)
 	fmt.Printf("• 累计已学词汇:   %d 词 (完成度: %.1f%%)\n", learnedCount, progressPct)
+	fmt.Printf("• 斩词/永久掌握:  %d 词 (标记为完全掌握，永不再考)\n", masteredCount)
 	fmt.Printf("• 待学剩余词汇:   %d 词\n", remaining)
 	fmt.Printf("• 当前大纲指针:   第 %d 词\n", p.CurrentIndex+1)
 	fmt.Println("--------------------------------------------------")
@@ -178,5 +213,5 @@ func (p *StudyProgress) PrintDashboard(totalWords int) {
 	fmt.Printf("• 今日到期待复习: %d 词 (基于艾宾浩斯遗忘曲线)\n", dueCount)
 	fmt.Printf("• 错题待重难巩固: %d 词\n", wrongCount)
 	fmt.Println("==================================================")
-	fmt.Printf("💡 建议：距离 2027 考研约 415 天，按每天新学 30 词计算，约 7 个月可完整过完 3 轮大纲词！\n\n")
+	fmt.Printf("💡 建议：遇到非常简单的已知词，随时按 [Ctrl+K] 斩词秒杀，永久移出复习流！\n\n")
 }

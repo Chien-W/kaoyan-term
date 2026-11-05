@@ -78,7 +78,7 @@ func main() {
 		wordMap[strings.ToLower(w.Word)] = w
 	}
 
-	// Build queue: Due reviews first, then new words
+	// Build queue: Due reviews first, then new words (skipping permanently mastered words)
 	var queue []StudyItem
 
 	if *flagWrongOnly {
@@ -95,7 +95,9 @@ func main() {
 		dueWords := prog.GetDueReviewWords()
 		for _, dw := range dueWords {
 			if w, ok := wordMap[strings.ToLower(dw)]; ok {
-				queue = append(queue, StudyItem{Word: w, IsReview: true})
+				if !prog.IsMastered(w.Word) {
+					queue = append(queue, StudyItem{Word: w, IsReview: true})
+				}
 			}
 		}
 		if len(queue) == 0 {
@@ -107,12 +109,17 @@ func main() {
 		dueWords := prog.GetDueReviewWords()
 		for _, dw := range dueWords {
 			if w, ok := wordMap[strings.ToLower(dw)]; ok {
-				queue = append(queue, StudyItem{Word: w, IsReview: true})
+				if !prog.IsMastered(w.Word) {
+					queue = append(queue, StudyItem{Word: w, IsReview: true})
+				}
 			}
 		}
 		// Then new words starting from CurrentIndex
 		for i := prog.CurrentIndex; i < len(bank.Words); i++ {
-			queue = append(queue, StudyItem{Word: bank.Words[i], IsReview: false})
+			w := bank.Words[i]
+			if !prog.IsMastered(w.Word) {
+				queue = append(queue, StudyItem{Word: w, IsReview: false})
+			}
 		}
 	}
 
@@ -157,6 +164,7 @@ func main() {
 	nonce := 9840 + prog.CurrentIndex
 	queueIndex := 0
 
+	WordLoop:
 	for {
 		if queueIndex >= len(queue) {
 			restoreTerminal(false)
@@ -166,7 +174,7 @@ func main() {
 
 		item := queue[queueIndex]
 		target := strings.ToLower(strings.TrimSpace(item.Word.Word))
-		if target == "" {
+		if target == "" || prog.IsMastered(target) {
 			queueIndex++
 			continue
 		}
@@ -194,6 +202,25 @@ func main() {
 				restoreTerminal(true)
 				prog.Save()
 				return
+			}
+
+			// Ctrl+K (11) or Ctrl+E (5) -> Kill word / Mark as fully known / Mastered (斩词秒杀)
+			if b == 11 || b == 5 {
+				prog.MarkMastered(target)
+				player.Stop()
+
+				ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+				fmt.Print("\033[2K\r")
+				fmt.Printf("%s%s\t%sINFO%s\tstorage/filter.go:34\ttoken marked permanent_bypass target=%q status=skipped\r\n",
+					colorGray, ts, colorGreen, colorReset, target)
+
+				if !item.IsReview && prog.CurrentIndex < len(bank.Words)-1 {
+					prog.CurrentIndex++
+				}
+				time.Sleep(100 * time.Millisecond)
+				queueIndex++
+				prog.Save()
+				continue WordLoop
 			}
 
 			// Ctrl+V (22) -> Toggle definition visibility and wipe scrollback
@@ -346,7 +373,6 @@ func renderPromptLine(nonce, current, total int, item StudyItem, input string, s
 		if len(cleanDef) > 32 {
 			cleanDef = cleanDef[:32] + ".."
 		}
-		// Notice offset="%d/%d" naturally conveys current / total progress!
 		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tevaluating rule expr=%q offset=%q type=%s token=%s%s%s%s█%s",
 			colorGray, ts, colorYellow, colorReset, cleanDef, fmt.Sprintf("%d/%d", current, total), reqType, colorCyan, input, colorReset, colorGreen, colorReset)
 	} else {

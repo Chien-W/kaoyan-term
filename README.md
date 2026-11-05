@@ -36,6 +36,7 @@ kaoyan -start 100
 ## In-Session Controls
 
 - `[Letters]`: Type token from earphone audio
+- `[Ctrl+K]` or `[Ctrl+E]`: Kill / Mark word as permanently mastered (斩词秒杀，永久移出复习队列)
 - `[Space]`: Replay bilingual audio (English + Chinese) in earphones
 - `[Tab]` or `[?]`: Hint next letter
 - `[Ctrl+P]`: Print disguised telemetry progress stats in log
