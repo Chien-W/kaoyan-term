@@ -20,19 +20,31 @@ import (
 var (
 	flagStart     = flag.Int("start", -1, "start from specific word index (0-6356)")
 	flagWrongOnly = flag.Bool("wrong", false, "practice error log tokens only")
-	flagShowDef   = flag.Bool("def", true, "show business expression definition hint in logs")
+	flagMode      = flag.String("mode", "card", "display mode: card (Baicizhan rich view) or test (Go test disguise)")
+	flagStealth   = flag.Bool("stealth", false, "start in stealth microservice log mode")
 	flagStatus    = flag.Bool("status", false, "print current study progress dashboard and exit")
 	flagReview    = flag.Bool("review", false, "practice today's due spaced repetition reviews only")
 )
 
 const (
 	colorReset  = "\033[0m"
+	colorBold   = "\033[1m"
+	colorDim    = "\033[2m"
 	colorCyan   = "\033[36m"
 	colorGreen  = "\033[32m"
 	colorYellow = "\033[33m"
 	colorBlue   = "\033[34m"
+	colorPurple = "\033[35m"
 	colorGray   = "\033[90m"
 	colorRed    = "\033[31m"
+)
+
+type ViewMode int
+
+const (
+	ModeCard ViewMode = iota // 百词斩精美极客卡片
+	ModeTest                 // Go Test 单元测试伪装
+	ModeLog                  // 极简微服务日志流
 )
 
 var ambientLogs = []string{
@@ -60,7 +72,6 @@ func main() {
 
 	prog := state.Load()
 
-	// If -status / -stat flag, print visual dashboard and exit cleanly
 	if *flagStatus {
 		prog.PrintDashboard(len(bank.Words))
 		return
@@ -70,7 +81,13 @@ func main() {
 		prog.CurrentIndex = *flagStart
 	}
 
-	showDef := *flagShowDef
+	currentMode := ModeCard
+	if *flagMode == "test" {
+		currentMode = ModeTest
+	} else if *flagMode == "log" || *flagStealth {
+		currentMode = ModeLog
+	}
+
 	player := audio.NewPlayer(2) // 2: US Accent
 
 	wordMap := make(map[string]vocab.Word, len(bank.Words))
@@ -78,9 +95,8 @@ func main() {
 		wordMap[strings.ToLower(w.Word)] = w
 	}
 
-	// Build queue: Due reviews first, then new words (skipping permanently mastered words)
+	// Build study queue
 	var queue []StudyItem
-
 	if *flagWrongOnly {
 		for _, w := range bank.Words {
 			if count, ok := prog.WrongWords[w.Word]; ok && count > 0 {
@@ -105,7 +121,7 @@ func main() {
 			return
 		}
 	} else {
-		// Mixed Smart Mode: Due reviews first
+		// Mixed Spaced Repetition Mode: Due reviews first
 		dueWords := prog.GetDueReviewWords()
 		for _, dw := range dueWords {
 			if w, ok := wordMap[strings.ToLower(dw)]; ok {
@@ -156,9 +172,8 @@ func main() {
 		prog.Save()
 	}()
 
-	// Wipe screen and scrollback completely on start
+	// Initial wipe
 	fmt.Print("\033[H\033[2J\033[3J")
-	printStartupLogs()
 
 	buf := make([]byte, 64)
 	nonce := 9840 + prog.CurrentIndex
@@ -179,12 +194,15 @@ WordLoop:
 			continue
 		}
 
-		// Play English + Chinese definition in headphones
+		// Play English audio + Chinese definition in headphones
 		player.PlayAsync(target, item.Word.Definition)
 
 		input := ""
 		nonce++
-		renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+
+		// Render word layout
+		renderWordHeader(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, prog)
+		renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 
 		startTime := time.Now()
 		wordError := false
@@ -192,116 +210,102 @@ WordLoop:
 		for {
 			n, err := os.Stdin.Read(buf)
 			if err != nil || n == 0 {
-				break
+				continue
 			}
 
 			for i := 0; i < n; i++ {
 				b := buf[i]
 
-				// Esc (27) or Ctrl+C (3) -> Boss Key: instant full wipe
+				// Esc (27) or Ctrl+C (3): Boss Key instant clear and exit
 				if b == 27 || b == 3 {
 					restoreTerminal(true)
 					prog.Save()
 					return
 				}
 
-				// Ctrl+K (11) or Ctrl+E (5) -> Kill word / Mark as fully known (斩词秒杀)
-				if b == 11 || b == 5 {
-					prog.MarkMastered(target)
-					player.Stop()
+				// Space (32): Replay bilingual pronunciation
+				if b == 32 {
+					player.PlayAsync(target, item.Word.Definition)
+					continue
+				}
 
-					ts := time.Now().Format("15:04:05.000")
-					fmt.Print("\033[2K\r")
-					fmt.Printf("%s%s\t%sINFO%s\tfilter.go:34\tpermanent_bypass target=%q status=skipped\r\n",
-						colorGray, ts, colorGreen, colorReset, target)
-
-					if !item.IsReview && prog.CurrentIndex < len(bank.Words)-1 {
-						prog.CurrentIndex++
+				// Tab (9) or '?': Hint next letter
+				if b == 9 || b == '?' {
+					if len(input) < len(target) {
+						nextChar := string(target[len(input)])
+						input += nextChar
+						renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					}
-					time.Sleep(80 * time.Millisecond)
-					queueIndex++
+					continue
+				}
+
+				// Ctrl+K (11): Permanently kill simple word (秒杀简单词)
+				if b == 11 {
+					prog.MarkMastered(target)
 					prog.Save()
+					flashNotice(currentMode, fmt.Sprintf("已秒杀简单词 [%s]，永久移出考研大纲复习流！", target))
+					queueIndex++
 					continue WordLoop
 				}
 
-				// Ctrl+V (22) -> Toggle definition visibility and wipe scrollback
-				if b == 22 {
-					showDef = !showDef
-					if !showDef {
-						fmt.Print("\033[H\033[2J\033[3J")
-						printStartupLogs()
+				// Ctrl+T (20): Toggle View Mode (Card View <-> Go Test Disguise)
+				if b == 20 {
+					if currentMode == ModeCard {
+						currentMode = ModeTest
+					} else {
+						currentMode = ModeCard
 					}
-					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+					fmt.Print("\033[H\033[2J\033[3J")
+					renderWordHeader(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, prog)
+					renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					continue
 				}
 
-				// Ctrl+P (16) -> Print disguised telemetry progress stats in log
+				// Ctrl+V (22): Toggle Stealth Mode (Rich View <-> Stealth Microservice Log)
+				if b == 22 {
+					if currentMode == ModeLog {
+						currentMode = ModeCard
+					} else {
+						currentMode = ModeLog
+					}
+					fmt.Print("\033[H\033[2J\033[3J")
+					renderWordHeader(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, prog)
+					renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
+					continue
+				}
+
+				// Ctrl+P (16): Telemetry log
 				if b == 16 {
 					ts := time.Now().Format("15:04:05.000")
-					remaining := len(bank.Words) - len(prog.Records)
-					if remaining < 0 {
-						remaining = 0
-					}
 					fmt.Print("\033[2K\r")
-					fmt.Printf("%s%s\t%sINFO%s\tmetric.go:50\tstats offset=%d/%d left=%d new=%d/%d rev=%d due=%d\r\n",
-						colorGray, ts, colorBlue, colorReset,
-						prog.CurrentIndex+1, len(bank.Words), remaining,
-						prog.DailyNewCount, prog.DailyGoal, prog.DailyRevCount, len(prog.GetDueReviewWords()))
-					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+					fmt.Printf("%s%s\t%sINFO%s\ttelemetry.go:42\t[2027-NETEM] idx=%d/%d done_today=%d mastered=%d due_rev=%d\r\n",
+						colorGray, ts, colorBlue, colorReset, prog.CurrentIndex+1, len(bank.Words), prog.DailyNewCount, len(prog.Records), len(prog.GetDueReviewWords()))
+					renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					continue
-				}
-
-				// Space (32) -> Replay Audio in headphones (if input is empty)
-				if b == 32 {
-					if len(input) == 0 {
-						player.PlayAsync(target, item.Word.Definition)
-						continue
-					}
 				}
 
 				// Backspace (127 or 8)
 				if b == 127 || b == 8 {
 					if len(input) > 0 {
 						input = input[:len(input)-1]
-						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+						renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					}
 					continue
 				}
 
-				// Tab (9) or '?' (63) -> Hint: reveal next letter ONLY (DO NOT jump word!)
-				if b == 9 || b == 63 {
-					if len(input) < len(target) {
-						input += string(target[len(input)])
-						wordError = true
-						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
-					}
-					continue
-				}
-
-				// Enter (13 or 10) -> SUBMIT ANSWER AND VALIDATE!
+				// Enter (13 or 10): Submit input token
 				if b == 13 || b == 10 {
 					trimmedInput := strings.TrimSpace(input)
-					if trimmedInput == "" {
-						// If empty, replay audio as a reminder
-						player.PlayAsync(target, item.Word.Definition)
-						continue
-					}
-
 					if trimmedInput == target {
-						// CORRECT! Advance to next word
 						goto WordCompleted
 					} else {
-						// WRONG! Show mismatch warning log and let user retry
+						// Mismatch: show warning and let user retry
 						wordError = true
-						ts := time.Now().Format("15:04:05.000")
-						fmt.Print("\033[2K\r")
-						fmt.Printf("%s%s\t%sWARN%s\tauth.go:68\ttoken mismatch input=%q target_len=%d status=401 retry\r\n",
-							colorGray, ts, colorRed, colorReset, trimmedInput, len(target))
-						// Replay audio to reinforce memory
+						showInputMismatch(currentMode, nonce, trimmedInput, len(target))
 						player.PlayAsync(target, item.Word.Definition)
-						// Reset input so user can type again
 						input = ""
-						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+						time.Sleep(250 * time.Millisecond)
+						renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					}
 					continue
 				}
@@ -310,7 +314,7 @@ WordLoop:
 				if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '-' || b == ' ' || b == '\'' {
 					charTyped := strings.ToLower(string(b))
 					input += charTyped
-					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+					renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 				}
 			}
 		}
@@ -331,88 +335,201 @@ WordLoop:
 			ms = 14 + int64(rand.Intn(35))
 		}
 
-		ts := time.Now().Format("15:04:05.000")
+		showCompletionPass(currentMode, nonce, target, item.Word, ms, item.IsReview)
 
-		// Overwrite active line with clean English log before scrolling up
-		reqType := "fresh"
+		time.Sleep(120 * time.Millisecond)
+		queueIndex++
+		prog.Save()
+	}
+}
+
+func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, prog *state.StudyProgress) {
+	w := item.Word
+	phonetic := w.USPhonetic
+	if phonetic == "" {
+		phonetic = w.UKPhonetic
+	}
+	progPct := float64(current) / float64(total) * 100
+
+	switch mode {
+	case ModeCard:
+		fmt.Print("\033[H\033[2J") // Clear screen
+		W := 70
+		border := strings.Repeat("─", W-2)
+
+		fmt.Printf("%s┌%s┐%s\r\n", colorCyan, border, colorReset)
+
+		// Header
+		typeTag := "新学"
 		if item.IsReview {
-			reqType = "retry"
+			typeTag = "复习"
 		}
-		fmt.Print("\033[2K\r")
-		fmt.Printf("%s%s\t%sDEBUG%s\trule.go:88\tprocessed token_id=%d token=%q type=%s\r\n",
-			colorGray, ts, colorYellow, colorReset, nonce, target, reqType)
+		header := fmt.Sprintf(" [NETEM 2027 考研核心词汇] · [%d/%d] %.1f%% · 今日%s: %d",
+			current, total, progPct, typeTag, prog.DailyNewCount)
+		fmt.Printf("%s│%s %-66s%s│%s\r\n", colorCyan, colorBold, header, colorCyan, colorReset)
+		fmt.Printf("%s├%s┤%s\r\n", colorCyan, border, colorReset)
 
-		// Print verified log
+		// Target Word & Phonetic
+		phoStr := ""
+		if phonetic != "" {
+			phoStr = fmt.Sprintf("/%s/", phonetic)
+		}
+		fmt.Printf("%s│%s  %s%-24s%s %s%-38s%s%s│%s\r\n",
+			colorCyan, colorReset, colorBold, w.Word, colorReset, colorYellow, phoStr, colorReset, colorCyan, colorReset)
+		fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
+
+		// POS Items
+		fmt.Printf("%s│%s  %s【大纲词性释义】%s                                                    %s│%s\r\n",
+			colorCyan, colorReset, colorBlue, colorReset, colorCyan, colorReset)
+
+		if len(w.POSItems) > 0 {
+			for _, p := range w.POSItems[:min(4, len(w.POSItems))] {
+				t := p.Type
+				if t == "" {
+					t = "•"
+				}
+				line := fmt.Sprintf("    %-6s %s", t, p.Translation)
+				line = truncateToVisualWidth(line, 64)
+				fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, line, colorCyan, colorReset)
+			}
+		} else {
+			defLine := fmt.Sprintf("    %s", cleanDefinition(w.Definition, 60))
+			fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, defLine, colorCyan, colorReset)
+		}
+
+		// Example Sentence
+		if w.Example != "" {
+			fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
+			fmt.Printf("%s│%s  %s【真题/语境例句】%s                                                    %s│%s\r\n",
+				colorCyan, colorReset, colorGreen, colorReset, colorCyan, colorReset)
+
+			exLine := fmt.Sprintf("    en: %s", w.Example)
+			exLine = truncateToVisualWidth(exLine, 64)
+			fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, exLine, colorCyan, colorReset)
+
+			if w.ExampleTrans != "" {
+				zhLine := fmt.Sprintf("    zh: %s", w.ExampleTrans)
+				zhLine = truncateToVisualWidth(zhLine, 64)
+				fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, zhLine, colorCyan, colorReset)
+			}
+		}
+
+		// Collocations / Phrases
+		if len(w.Phrases) > 0 {
+			fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
+			fmt.Printf("%s│%s  %s【考点搭配】%s                                                        %s│%s\r\n",
+				colorCyan, colorReset, colorPurple, colorReset, colorCyan, colorReset)
+			for _, phr := range w.Phrases[:min(2, len(w.Phrases))] {
+				phrLine := fmt.Sprintf("    • %s", phr)
+				phrLine = truncateToVisualWidth(phrLine, 64)
+				fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, phrLine, colorCyan, colorReset)
+			}
+		}
+
+		fmt.Printf("%s└%s┘%s\r\n", colorCyan, border, colorReset)
+		fmt.Printf("%s  [空格] 发音 | [Tab] 提示 | [Ctrl+K] 秒杀 | [Ctrl+T] 伪装 | [Ctrl+V] 隐身 | [Esc] 退出%s\r\n", colorGray, colorReset)
+
+	case ModeTest:
+		fmt.Printf("\r\n=== RUN   TestMetricCollector/QueryPoint_%04d [%s] /%s/\r\n",
+			current, w.Word, phonetic)
+
+		// Multi-line POS
+		if len(w.POSItems) > 0 {
+			for idx, p := range w.POSItems[:min(3, len(w.POSItems))] {
+				t := p.Type
+				if t == "" {
+					t = "def"
+				}
+				fmt.Printf("    collector_test.go:%d: [%s] %s\r\n", 40+idx, t, p.Translation)
+			}
+		} else {
+			fmt.Printf("    collector_test.go:40: [param] %s\r\n", cleanDefinition(w.Definition, 60))
+		}
+
+		// Example
+		if w.Example != "" {
+			fmt.Printf("    collector_test.go:44: [example] %s\r\n", w.Example)
+			if w.ExampleTrans != "" {
+				fmt.Printf("    collector_test.go:45: [translate] %s\r\n", w.ExampleTrans)
+			}
+		}
+
+		// Phrase
+		if len(w.Phrases) > 0 {
+			fmt.Printf("    collector_test.go:46: [phrase] %s\r\n", w.Phrases[0])
+		}
+
+	case ModeLog:
+		// Do not print header in microservice log stream
+	}
+}
+
+func renderInputPrompt(mode ViewMode, nonce, current, total int, item StudyItem, input, target string) {
+	coloredInput := formatInput(input, target)
+
+	switch mode {
+	case ModeCard:
+		fmt.Print("\033[2K\r")
+		fmt.Printf("  %s键入:%s %s█%s", colorBold, colorReset, coloredInput, colorReset)
+
+	case ModeTest:
+		fmt.Print("\033[2K\r")
+		fmt.Printf("    collector_test.go:48: [token] %s█%s", coloredInput, colorReset)
+
+	case ModeLog:
+		ts := time.Now().Format("15:04:05.000")
+		fmt.Print("\033[2K\r")
+		fmt.Printf("%s%s\t%sDEBUG%s\trule.go:88\tpayload [%d/%d] len=%d token=%s█%s",
+			colorGray, ts, colorYellow, colorReset, current, total, len(target), coloredInput, colorReset)
+	}
+}
+
+func showInputMismatch(mode ViewMode, nonce int, input string, targetLen int) {
+	fmt.Print("\033[2K\r")
+	switch mode {
+	case ModeCard:
+		fmt.Printf("  %s✗ 拼写有误 (%q, 长度%d)，请按退格键修改或按 Tab 提示%s", colorRed, input, targetLen, colorReset)
+	case ModeTest:
+		fmt.Printf("    collector_test.go:49: %s[mismatch] input=%q len=%d retry%s", colorRed, input, targetLen, colorReset)
+	case ModeLog:
+		ts := time.Now().Format("15:04:05.000")
+		fmt.Printf("%s%s\t%sWARN%s\tauth.go:68\ttoken mismatch input=%q target_len=%d status=401 retry\r\n",
+			colorGray, ts, colorRed, colorReset, input, targetLen)
+	}
+}
+
+func showCompletionPass(mode ViewMode, nonce int, target string, w vocab.Word, ms int64, isReview bool) {
+	fmt.Print("\033[2K\r")
+	ts := time.Now().Format("15:04:05.000")
+
+	switch mode {
+	case ModeCard:
+		tag := "新词掌握"
+		if isReview {
+			tag = "复习巩固"
+		}
+		fmt.Printf("  %s✔ 完美掌握 [%s] (%s, %dms)%s\r\n", colorGreen, target, tag, ms, colorReset)
+
+	case ModeTest:
+		fmt.Printf("    collector_test.go:50: [pass] verified token=%q ms=%d\r\n", target, ms)
+		fmt.Printf("--- PASS: TestMetricCollector/QueryPoint_%04d (%.2fs)\r\n", nonce%1000, float64(ms)/1000.0)
+
+	case ModeLog:
 		fmt.Printf("%s%s\t%sINFO%s\tauth.go:72\tsession handshake verified token=%q status=200 ms=%d\r\n",
 			colorGray, ts, colorBlue, colorReset, target, ms)
-
-		time.Sleep(80 * time.Millisecond)
-
-		// Print realistic background ambient log occasionally
 		if rand.Float32() < 0.35 {
 			pattern := ambientLogs[rand.Intn(len(ambientLogs))]
 			logMsg := fmt.Sprintf(pattern, rand.Intn(50000))
 			hbTs := time.Now().Format("15:04:05.000")
 			fmt.Printf("%s%s\t%sINFO%s\t%s\r\n", colorGray, hbTs, colorBlue, colorReset, logMsg)
 		}
-
-		queueIndex++
-		prog.Save()
 	}
 }
 
-func printStartupLogs() {
-	now := time.Now()
-	printLog(now.Add(-2*time.Second), "INFO", "bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 workers=64")
-	printLog(now.Add(-1600*time.Millisecond), "INFO", "postgres.go:78", "connected to postgres cluster pool=20 latency=1.1ms")
-	printLog(now.Add(-1100*time.Millisecond), "INFO", "raft.go:94", "raft node initialized cluster_id=1413 role=follower")
-	printLog(now.Add(-600*time.Millisecond), "INFO", "stream.go:120", "kafka consumer group active partitions=8")
-	printLog(now.Add(-200*time.Millisecond), "INFO", "handler.go:88", "rule execution pipeline initialized mode=streaming")
-}
-
-func printLog(t time.Time, level, caller, msg string) {
-	ts := t.Format("15:04:05.000")
-	fmt.Printf("%s%s\t%s%s%s\t%s\t%s\r\n", colorGray, ts, colorBlue, level, colorReset, caller, msg)
-}
-
-func cleanDefinition(raw string) string {
-	lines := strings.Split(raw, "\n")
-	var candidate string
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if l != "" && !strings.HasPrefix(l, "aux.") && !strings.HasPrefix(l, "abbr.") {
-			candidate = l
-			break
-		}
-	}
-	if candidate == "" && len(lines) > 0 {
-		candidate = strings.TrimSpace(lines[0])
-	}
-	candidate = strings.ReplaceAll(candidate, "\n", " ")
-	runes := []rune(candidate)
-	if len(runes) > 16 {
-		return string(runes[:16]) + ".."
-	}
-	return candidate
-}
-
-func renderPromptLine(nonce, current, total int, item StudyItem, input string, showDef bool) {
-	ts := time.Now().Format("15:04:05.000")
-	fmt.Print("\033[2K\r") // Clear current line
-
-	target := strings.ToLower(strings.TrimSpace(item.Word.Word))
-	targetLen := len(target)
-	coloredInput := formatInput(input, target)
-
-	// Keep line compact (<= 75 columns) to strictly prevent any line-wrapping!
-	if showDef {
-		def := cleanDefinition(item.Word.Definition)
-		fmt.Printf("%s%s\t%sDEBUG%s\trule.go:88\texpr=%q [%d/%d] len=%d token=%s█%s",
-			colorGray, ts, colorYellow, colorReset, def, current, total, targetLen, coloredInput, colorReset)
-	} else {
-		fmt.Printf("%s%s\t%sDEBUG%s\tauth.go:64\tpayload [%d/%d] len=%d token=%s█%s",
-			colorGray, ts, colorYellow, colorReset, current, total, targetLen, coloredInput, colorReset)
-	}
+func flashNotice(mode ViewMode, msg string) {
+	fmt.Print("\033[2K\r")
+	fmt.Printf("%s  ⚡ %s%s\r\n", colorYellow, msg, colorReset)
+	time.Sleep(300 * time.Millisecond)
 }
 
 func formatInput(input, target string) string {
@@ -427,11 +544,49 @@ func formatInput(input, target string) string {
 			b.WriteByte(ch)
 			b.WriteString(colorReset)
 		} else {
-			// Mismatch / typo: red
 			b.WriteString(colorRed)
 			b.WriteByte(ch)
 			b.WriteString(colorReset)
 		}
 	}
 	return b.String()
+}
+
+func cleanDefinition(raw string, maxLen int) string {
+	raw = strings.ReplaceAll(raw, "\n", " ")
+	runes := []rune(raw)
+	if len(runes) > maxLen {
+		return string(runes[:maxLen-2]) + ".."
+	}
+	return raw
+}
+
+func truncateToVisualWidth(s string, maxWidth int) string {
+	runes := []rune(s)
+	width := 0
+	cutIdx := len(runes)
+
+	for i, r := range runes {
+		if r > 127 {
+			width += 2
+		} else {
+			width += 1
+		}
+		if width > maxWidth-2 {
+			cutIdx = i
+			break
+		}
+	}
+
+	if cutIdx < len(runes) {
+		return string(runes[:cutIdx]) + ".."
+	}
+	return s
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

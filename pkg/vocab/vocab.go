@@ -9,13 +9,23 @@ import (
 //go:embed words.json
 var embeddedWordsJSON []byte
 
+type POSItem struct {
+	Type        string `json:"type"`        // "v.", "n.", "adj.", "pron.", etc.
+	Translation string `json:"translation"` // "你；你们；各位"
+}
+
 type Word struct {
-	Word        string   `json:"word"`
-	USPhonetic  string   `json:"us_phonetic"`
-	UKPhonetic  string   `json:"uk_phonetic"`
-	Definition  string   `json:"definition"`
-	Frequency   float64  `json:"frequency"`
-	Phrases     []string `json:"phrases"`
+	Word         string    `json:"word"`
+	USPhonetic   string    `json:"us_phonetic"`
+	UKPhonetic   string    `json:"uk_phonetic"`
+	Definition   string    `json:"definition"`
+	POSItems     []POSItem `json:"pos_items,omitempty"`
+	Example      string    `json:"example,omitempty"`
+	ExampleTrans string    `json:"example_trans,omitempty"`
+	ExamHits     int       `json:"exam_hits,omitempty"`
+	Category     string    `json:"category,omitempty"`
+	Frequency    float64   `json:"frequency"`
+	Phrases      []string  `json:"phrases"`
 }
 
 type Bank struct {
@@ -42,3 +52,4 @@ func (b *Bank) FilterByQuery(q string) []Word {
 	}
 	return res
 }
+
