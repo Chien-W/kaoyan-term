@@ -36,12 +36,12 @@ const (
 )
 
 var ambientLogs = []string{
-	"cluster/raft.go:184\tcommit log entry index=%d term=14 leader_id=\"node-10.200.25.165\"",
-	"storage/wal.go:92\tsync wal segment flushed_bytes=16384 duration_us=182",
-	"telemetry/metric.go:142\thistogram bucket recorded metric=\"net_ingress_bytes\" p99_latency_ms=1.4",
-	"network/pool.go:68\treused idle tcp keepalive socket fd=%d remote=\"10.200.25.165:31805\"",
-	"pipeline/worker.go:119\tconsumer partition rebalance state=stable assigned=[0,1,2,3]",
-	"cache/redis.go:54\tkey buffer evicted namespace=\"alarm_cache\" freed_keys=128",
+	"cluster/raft.go:184\tcommit entry index=%d term=14 node=10.200.25.165",
+	"storage/wal.go:92\tsync wal segment flushed_bytes=16384 us=182",
+	"telemetry/metric.go:142\thistogram bucket recorded metric=\"net_ingress\" p99_ms=1.4",
+	"network/pool.go:68\treused idle tcp socket fd=%d remote=\"10.200.25.165:31805\"",
+	"pipeline/worker.go:119\tpartition rebalance stable assigned=[0,1,2,3]",
+	"cache/redis.go:54\tkey buffer evicted namespace=\"alarm\" freed=128",
 }
 
 type StudyItem struct {
@@ -195,7 +195,6 @@ WordLoop:
 				break
 			}
 
-			// Process all incoming bytes in buffer (supports fast typing and multi-byte inputs)
 			for i := 0; i < n; i++ {
 				b := buf[i]
 
@@ -206,14 +205,14 @@ WordLoop:
 					return
 				}
 
-				// Ctrl+K (11) or Ctrl+E (5) -> Kill word / Mark as fully known / Mastered (斩词秒杀)
+				// Ctrl+K (11) or Ctrl+E (5) -> Kill word / Mark as fully known (斩词秒杀)
 				if b == 11 || b == 5 {
 					prog.MarkMastered(target)
 					player.Stop()
 
-					ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+					ts := time.Now().Format("15:04:05.000")
 					fmt.Print("\033[2K\r")
-					fmt.Printf("%s%s\t%sINFO%s\tstorage/filter.go:34\ttoken marked permanent_bypass target=%q status=skipped\r\n",
+					fmt.Printf("%s%s\t%sINFO%s\tfilter.go:34\tpermanent_bypass target=%q status=skipped\r\n",
 						colorGray, ts, colorGreen, colorReset, target)
 
 					if !item.IsReview && prog.CurrentIndex < len(bank.Words)-1 {
@@ -238,13 +237,13 @@ WordLoop:
 
 				// Ctrl+P (16) -> Print disguised telemetry progress stats in log
 				if b == 16 {
-					ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+					ts := time.Now().Format("15:04:05.000")
 					remaining := len(bank.Words) - len(prog.Records)
 					if remaining < 0 {
 						remaining = 0
 					}
 					fmt.Print("\033[2K\r")
-					fmt.Printf("%s%s\t%sINFO%s\ttelemetry/metric.go:50\tsync stats offset=%d/%d left=%d today_new=%d/%d today_rev=%d due_queue=%d\r\n",
+					fmt.Printf("%s%s\t%sINFO%s\tmetric.go:50\tstats offset=%d/%d left=%d new=%d/%d rev=%d due=%d\r\n",
 						colorGray, ts, colorBlue, colorReset,
 						prog.CurrentIndex+1, len(bank.Words), remaining,
 						prog.DailyNewCount, prog.DailyGoal, prog.DailyRevCount, len(prog.GetDueReviewWords()))
@@ -252,9 +251,9 @@ WordLoop:
 					continue
 				}
 
-				// Space (32) -> If input is empty, replay Audio into headphones; if word has space, append space
+				// Space (32) -> Replay Audio in headphones (if input is empty)
 				if b == 32 {
-					if len(input) == 0 || !strings.Contains(target, " ") {
+					if len(input) == 0 {
 						player.PlayAsync(target, item.Word.Definition)
 						continue
 					}
@@ -269,27 +268,40 @@ WordLoop:
 					continue
 				}
 
-				// Tab (9) or '?' (63) -> Hint: reveal next correct letter
+				// Tab (9) or '?' (63) -> Hint: reveal next letter ONLY (DO NOT jump word!)
 				if b == 9 || b == 63 {
 					if len(input) < len(target) {
 						input += string(target[len(input)])
 						wordError = true
 						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
-						if input == target {
-							goto WordCompleted
-						}
 					}
 					continue
 				}
 
-				// Enter (13 or 10) -> Check word if full or clear typo
+				// Enter (13 or 10) -> SUBMIT ANSWER AND VALIDATE!
 				if b == 13 || b == 10 {
-					if input == target {
+					trimmedInput := strings.TrimSpace(input)
+					if trimmedInput == "" {
+						// If empty, replay audio as a reminder
+						player.PlayAsync(target, item.Word.Definition)
+						continue
+					}
+
+					if trimmedInput == target {
+						// CORRECT! Advance to next word
 						goto WordCompleted
 					} else {
+						// WRONG! Show mismatch warning log and let user retry
 						wordError = true
-						// Flash line
-						fmt.Print("\a")
+						ts := time.Now().Format("15:04:05.000")
+						fmt.Print("\033[2K\r")
+						fmt.Printf("%s%s\t%sWARN%s\tauth.go:68\ttoken mismatch input=%q target_len=%d status=401 retry\r\n",
+							colorGray, ts, colorRed, colorReset, trimmedInput, len(target))
+						// Replay audio to reinforce memory
+						player.PlayAsync(target, item.Word.Definition)
+						// Reset input so user can type again
+						input = ""
+						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
 					}
 					continue
 				}
@@ -297,24 +309,8 @@ WordLoop:
 				// Letter & symbol typing (a-z, A-Z, '-', ' ', '\'')
 				if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '-' || b == ' ' || b == '\'' {
 					charTyped := strings.ToLower(string(b))
-
-					// Allow typing freely so the user always sees their keystrokes!
-					if len(input) < len(target) {
-						expectedChar := string(target[len(input)])
-						if charTyped != expectedChar {
-							wordError = true
-						}
-					} else {
-						wordError = true
-					}
-
 					input += charTyped
 					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
-
-					// If matches target exactly, word is completed!
-					if input == target {
-						goto WordCompleted
-					}
 				}
 			}
 		}
@@ -335,20 +331,20 @@ WordLoop:
 			ms = 14 + int64(rand.Intn(35))
 		}
 
-		ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+		ts := time.Now().Format("15:04:05.000")
 
-		// Overwrite active line with pure English log before scrolling up
+		// Overwrite active line with clean English log before scrolling up
 		reqType := "fresh"
 		if item.IsReview {
 			reqType = "retry"
 		}
 		fmt.Print("\033[2K\r")
-		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tprocessed token_id=%d token=%q type=%s\r\n",
+		fmt.Printf("%s%s\t%sDEBUG%s\trule.go:88\tprocessed token_id=%d token=%q type=%s\r\n",
 			colorGray, ts, colorYellow, colorReset, nonce, target, reqType)
 
 		// Print verified log
-		fmt.Printf("%s%s\t%sINFO%s\tingress/auth.go:72\tsession handshake verified nonce=%d status=200 latency_ms=%d\r\n",
-			colorGray, ts, colorBlue, colorReset, nonce, ms)
+		fmt.Printf("%s%s\t%sINFO%s\tauth.go:72\tsession handshake verified token=%q status=200 ms=%d\r\n",
+			colorGray, ts, colorBlue, colorReset, target, ms)
 
 		time.Sleep(80 * time.Millisecond)
 
@@ -356,7 +352,7 @@ WordLoop:
 		if rand.Float32() < 0.35 {
 			pattern := ambientLogs[rand.Intn(len(ambientLogs))]
 			logMsg := fmt.Sprintf(pattern, rand.Intn(50000))
-			hbTs := time.Now().Format("2006-01-02T15:04:05.000-0700")
+			hbTs := time.Now().Format("15:04:05.000")
 			fmt.Printf("%s%s\t%sINFO%s\t%s\r\n", colorGray, hbTs, colorBlue, colorReset, logMsg)
 		}
 
@@ -367,15 +363,15 @@ WordLoop:
 
 func printStartupLogs() {
 	now := time.Now()
-	printLog(now.Add(-2*time.Second), "INFO", "server/bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 max_workers=64")
-	printLog(now.Add(-1600*time.Millisecond), "INFO", "storage/postgres.go:78", "connected to postgres cluster pool_size=20 latency_ms=1.12")
-	printLog(now.Add(-1100*time.Millisecond), "INFO", "cluster/raft.go:94", "raft node initialized cluster_id=1413 role=follower")
-	printLog(now.Add(-600*time.Millisecond), "INFO", "pipeline/stream.go:120", "kafka partition stream consumer group active partitions=8")
-	printLog(now.Add(-200*time.Millisecond), "INFO", "dispatch/handler.go:88", "rule execution pipeline initialized mode=streaming")
+	printLog(now.Add(-2*time.Second), "INFO", "bootstrap.go:42", "starting grpc service telemetry.v1 on :8080 workers=64")
+	printLog(now.Add(-1600*time.Millisecond), "INFO", "postgres.go:78", "connected to postgres cluster pool=20 latency=1.1ms")
+	printLog(now.Add(-1100*time.Millisecond), "INFO", "raft.go:94", "raft node initialized cluster_id=1413 role=follower")
+	printLog(now.Add(-600*time.Millisecond), "INFO", "stream.go:120", "kafka consumer group active partitions=8")
+	printLog(now.Add(-200*time.Millisecond), "INFO", "handler.go:88", "rule execution pipeline initialized mode=streaming")
 }
 
 func printLog(t time.Time, level, caller, msg string) {
-	ts := t.Format("2006-01-02T15:04:05.000-0700")
+	ts := t.Format("15:04:05.000")
 	fmt.Printf("%s%s\t%s%s%s\t%s\t%s\r\n", colorGray, ts, colorBlue, level, colorReset, caller, msg)
 }
 
@@ -394,32 +390,28 @@ func cleanDefinition(raw string) string {
 	}
 	candidate = strings.ReplaceAll(candidate, "\n", " ")
 	runes := []rune(candidate)
-	if len(runes) > 30 {
-		return string(runes[:30]) + ".."
+	if len(runes) > 16 {
+		return string(runes[:16]) + ".."
 	}
 	return candidate
 }
 
 func renderPromptLine(nonce, current, total int, item StudyItem, input string, showDef bool) {
-	ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+	ts := time.Now().Format("15:04:05.000")
 	fmt.Print("\033[2K\r") // Clear current line
-
-	reqType := "fresh"
-	if item.IsReview {
-		reqType = "retry"
-	}
 
 	target := strings.ToLower(strings.TrimSpace(item.Word.Word))
 	targetLen := len(target)
 	coloredInput := formatInput(input, target)
 
+	// Keep line compact (<= 75 columns) to strictly prevent any line-wrapping!
 	if showDef {
 		def := cleanDefinition(item.Word.Definition)
-		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tevaluating rule expr=%q offset=\"%d/%d\" len=%d type=%s token=%s█%s",
-			colorGray, ts, colorYellow, colorReset, def, current, total, targetLen, reqType, coloredInput, colorReset)
+		fmt.Printf("%s%s\t%sDEBUG%s\trule.go:88\texpr=%q [%d/%d] len=%d token=%s█%s",
+			colorGray, ts, colorYellow, colorReset, def, current, total, targetLen, coloredInput, colorReset)
 	} else {
-		fmt.Printf("%s%s\t%sDEBUG%s\tingress/auth.go:64\tverifying session payload offset=\"%d/%d\" len=%d type=%s token=%s█%s",
-			colorGray, ts, colorYellow, colorReset, current, total, targetLen, reqType, coloredInput, colorReset)
+		fmt.Printf("%s%s\t%sDEBUG%s\tauth.go:64\tpayload [%d/%d] len=%d token=%s█%s",
+			colorGray, ts, colorYellow, colorReset, current, total, targetLen, coloredInput, colorReset)
 	}
 }
 
@@ -435,7 +427,7 @@ func formatInput(input, target string) string {
 			b.WriteByte(ch)
 			b.WriteString(colorReset)
 		} else {
-			// Typo character: highlighted in red so user knows immediately
+			// Mismatch / typo: red
 			b.WriteString(colorRed)
 			b.WriteByte(ch)
 			b.WriteString(colorReset)

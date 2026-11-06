@@ -4,23 +4,26 @@ Terminal-based continuous vocabulary dictation tool disguised as an authentic Go
 
 ## Features
 
-- **Spaced Repetition (Ebbinghaus)**: Automatically schedules reviews across 1d, 2d, 4d, 7d, 15d, and 30d intervals.
-- **Smart Queue (New vs Review)**: Automatically prioritizes today's due review words before introducing daily new words.
-- **Progress Tracking & Dashboard**:
-  - Run `kaoyan -status` to view visual study progress, completion rates, and daily review quotas.
-  - While running, logs display disguised `offset="17/6357"` and `type="fresh"|"retry"`.
-  - Press `Ctrl+P` in-session for an instant telemetry progress sync log.
-- **No Overlapping Audio**: Process lifecycle managed via Context cancellation.
+- **No Overlapping Audio**: Audio process lifecycle managed via Context cancellation.
 - **Bilingual Earphone Audio**: Plays native US pronunciation followed by concise Chinese definition directly into earphones.
-- **Instant Boss Key**: `Esc` or `Ctrl+C` wipes terminal and scrollback buffer completely.
+- **Compact Log Formatting**: Compact log output (< 65 cols) prevents line-wrapping in split IDE terminals.
+- **Strict Submission Flow**:
+  - `[Letters]`: Freely type tokens in-place.
+  - `[Tab]` or `[?]`: Hints/completes the next letter without skipping words.
+  - `[Enter]`: Submits and validates token (logs status=200 on success, status=401 retry on mismatch).
+  - `[Ctrl+K]` or `[Ctrl+E]`: Permanently bypass/master simple words.
+  - `[Space]`: Replays audio in headphones.
+  - `[Ctrl+V]`: Toggles definition expr on screen.
+  - `[Ctrl+P]`: Prints progress telemetry in log.
+  - `[Esc]` or `[Ctrl+C]`: Instant clean exit.
 
 ## CLI Usage
 
 ```bash
-# 1. Start continuous practice (smart queue: reviews first, then new words)
+# 1. Start continuous practice (reviews first, then new words)
 kaoyan
 
-# 2. View comprehensive 2027 NETEM review dashboard
+# 2. View 2027 NETEM review dashboard
 kaoyan -status
 
 # 3. Practice today's due reviews only
@@ -32,14 +35,3 @@ kaoyan -wrong
 # 5. Start from specific word offset
 kaoyan -start 100
 ```
-
-## In-Session Controls
-
-- `[Letters]`: Type token from earphone audio
-- `[Ctrl+K]` or `[Ctrl+E]`: Kill / Mark word as permanently mastered (斩词秒杀，永久移出复习队列)
-- `[Space]`: Replay bilingual audio (English + Chinese) in earphones
-- `[Tab]` or `[?]`: Hint next letter
-- `[Ctrl+P]`: Print disguised telemetry progress stats in log
-- `[Ctrl+V]`: Toggle showing/hiding definition expr in logs
-- `[Backspace]`: Delete character
-- `[Esc]` or `[Ctrl+C]`: Instant clean exit
