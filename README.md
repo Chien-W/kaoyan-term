@@ -9,6 +9,11 @@ A high-performance terminal vocabulary learning CLI designed for the 2027 Chines
   - Multi-POS classification (`v.`, `n.`, `adj.`, `pron.`) with structured Chinese meanings.
   - Authentic考研真题 & high-frequency context sentences with Chinese translations.
   - Key exam phrases and collocations.
+- **Multiple-Choice Checkpoint Quizzes (英文选中文 · 形近词混淆测试)**:
+  - **Batch Learning Loop**: Automatically triggers a 4-choice review quiz after every $N$ words (default 5, configurable via `-batch`).
+  - **Intelligent Distractor Generator**: Automatically pairs target words with authentic 考研 high-frequency confusing words (形近词、音近词、同前缀/后缀词，如 `contract` vs `contact` / `contrast` / `contrary`；`adapt` vs `adopt` / `adept`)!
+  - **Comparative Contrast Review**: Displays side-by-side explanations of all 4 confusing words right after answering.
+  - **Standalone Quiz Mode (`kaoyan -quiz`)**: Practice pure multiple-choice testing on recent or error book vocabulary.
 - **Dual Visual Modes (Seamless Hotkey Switching)**:
   - **Card View (Default)**: Clean, focused developer-styled ASCII card.
   - **Go Test Disguise (`Ctrl+T`)**: Formats all vocabulary fixtures into realistic `=== RUN TestMetricCollector` outputs.
@@ -29,24 +34,33 @@ A high-performance terminal vocabulary learning CLI designed for the 2027 Chines
 ## CLI Usage
 
 ```bash
-# 1. Start continuous practice (default: Baicizhan Card View)
+# 1. Start continuous practice (learn 5 words then quiz, default: Baicizhan Card View)
 kaoyan
 
-# 2. Start in Go Test disguise mode
+# 2. Adjust checkpoint quiz batch size (e.g., test every 10 words, or 0 to disable)
+kaoyan -batch 10
+
+# 3. Enter standalone multiple-choice quiz mode (英文选中文 · 辨析形近词)
+kaoyan -quiz
+
+# 4. Multiple-choice quiz on error book words only
+kaoyan -quiz -wrong
+
+# 5. Start in Go Test disguise mode
 kaoyan -mode test
 
-# 3. Start in stealth microservice log mode
+# 6. Start in stealth microservice log mode
 kaoyan -stealth
 
-# 4. View 2027 NETEM review dashboard
+# 7. View 2027 NETEM review dashboard
 kaoyan -status
 
-# 5. Practice today's due reviews only
+# 8. Practice today's due reviews only
 kaoyan -review
 
-# 6. Practice error book words only
+# 9. Practice error book words only
 kaoyan -wrong
 
-# 7. Start from specific word offset
+# 10. Start from specific word offset
 kaoyan -start 100
 ```

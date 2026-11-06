@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 
 	"kaoyan-term/pkg/audio"
+	"kaoyan-term/pkg/quiz"
 	"kaoyan-term/pkg/state"
 	"kaoyan-term/pkg/vocab"
 )
@@ -24,6 +25,8 @@ var (
 	flagStealth   = flag.Bool("stealth", false, "start in stealth microservice log mode")
 	flagStatus    = flag.Bool("status", false, "print current study progress dashboard and exit")
 	flagReview    = flag.Bool("review", false, "practice today's due spaced repetition reviews only")
+	flagQuiz      = flag.Bool("quiz", false, "run multiple-choice quiz mode (英文选中文，形近词混淆测试)")
+	flagBatch     = flag.Int("batch", 5, "words per learning batch before triggering checkpoint quiz (default 5, 0 to disable)")
 )
 
 const (
@@ -89,6 +92,7 @@ func main() {
 	}
 
 	player := audio.NewPlayer(2) // 2: US Accent
+	quizEngine := quiz.NewEngine(bank)
 
 	wordMap := make(map[string]vocab.Word, len(bank.Words))
 	for _, w := range bank.Words {
@@ -172,16 +176,30 @@ func main() {
 		prog.Save()
 	}()
 
-	// Initial wipe
+	// Standalone Quiz Mode (-quiz)
+	if *flagQuiz {
+		runStandaloneQuiz(queue, quizEngine, player, prog, currentMode, restoreTerminal)
+		return
+	}
+
+	// Normal Learning Loop with Batch Checkpoint Quizzes
 	fmt.Print("\033[H\033[2J\033[3J")
 
 	buf := make([]byte, 64)
 	nonce := 9840 + prog.CurrentIndex
 	queueIndex := 0
 
+	var batchBuffer []vocab.Word
+	batchSize := *flagBatch
+
 WordLoop:
 	for {
 		if queueIndex >= len(queue) {
+			// If any words in batchBuffer, run final quiz
+			if len(batchBuffer) > 0 {
+				runCheckpointQuiz(batchBuffer, quizEngine, player, prog, currentMode, restoreTerminal)
+				batchBuffer = nil
+			}
 			restoreTerminal(false)
 			fmt.Println("\r\nservice stopped: all scheduled tasks completed.")
 			return
@@ -246,6 +264,22 @@ WordLoop:
 					flashNotice(currentMode, fmt.Sprintf("已秒杀简单词 [%s]，永久移出考研大纲复习流！", target))
 					queueIndex++
 					continue WordLoop
+				}
+
+				// Ctrl+Q (17): Instant Checkpoint Quiz on recent words
+				if b == 17 {
+					var wordsToQuiz []vocab.Word
+					if len(batchBuffer) > 0 {
+						wordsToQuiz = batchBuffer
+					} else {
+						wordsToQuiz = []vocab.Word{item.Word}
+					}
+					runCheckpointQuiz(wordsToQuiz, quizEngine, player, prog, currentMode, restoreTerminal)
+					batchBuffer = nil
+					// Re-render current word
+					renderWordHeader(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, prog)
+					renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
+					continue
 				}
 
 				// Ctrl+T (20): Toggle View Mode (Card View <-> Go Test Disguise)
@@ -337,10 +371,351 @@ WordLoop:
 
 		showCompletionPass(currentMode, nonce, target, item.Word, ms, item.IsReview)
 
+		batchBuffer = append(batchBuffer, item.Word)
+
 		time.Sleep(120 * time.Millisecond)
 		queueIndex++
 		prog.Save()
+
+		// Trigger Checkpoint Quiz every N words
+		if batchSize > 0 && len(batchBuffer) >= batchSize {
+			time.Sleep(200 * time.Millisecond)
+			runCheckpointQuiz(batchBuffer, quizEngine, player, prog, currentMode, restoreTerminal)
+			batchBuffer = nil
+		}
 	}
+}
+
+// runCheckpointQuiz executes multiple choice testing for a batch of recently learned words
+func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audio.Player, prog *state.StudyProgress, mode ViewMode, restoreTerminal func(bool)) {
+	if len(words) == 0 {
+		return
+	}
+
+	shuffled := make([]vocab.Word, len(words))
+	copy(shuffled, words)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	fmt.Print("\033[H\033[2J\033[3J")
+	correctCount := 0
+
+	for qIdx, w := range shuffled {
+		q := quizEngine.GenerateQuestion(w)
+		player.PlayAsync(w.Word, w.Definition)
+
+		renderQuizQuestion(mode, qIdx+1, len(shuffled), q)
+
+		// Wait for single-key choice A/B/C/D or 1/2/3/4
+		userChoice := -1
+		buf := make([]byte, 16)
+
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil || n == 0 {
+				continue
+			}
+			b := buf[0]
+
+			// Esc / Ctrl+C
+			if b == 27 || b == 3 {
+				restoreTerminal(true)
+				prog.Save()
+				os.Exit(0)
+			}
+
+			// Space: replay audio
+			if b == 32 {
+				player.PlayAsync(w.Word, w.Definition)
+				continue
+			}
+
+			// A/1
+			if b == 'a' || b == 'A' || b == '1' {
+				userChoice = 0
+				break
+			}
+			// B/2
+			if b == 'b' || b == 'B' || b == '2' {
+				userChoice = 1
+				break
+			}
+			// C/3
+			if b == 'c' || b == 'C' || b == '3' {
+				userChoice = 2
+				break
+			}
+			// D/4
+			if b == 'd' || b == 'D' || b == '4' {
+				userChoice = 3
+				break
+			}
+		}
+
+		isCorrect := (userChoice == q.CorrectIndex)
+		if isCorrect {
+			correctCount++
+			showQuizAnswerResult(mode, true, userChoice, q, player)
+			time.Sleep(1200 * time.Millisecond)
+		} else {
+			prog.RecordError(w.Word)
+			showQuizAnswerResult(mode, false, userChoice, q, player)
+			// Wait for user confirmation on mistake
+			fmt.Print("\r\n  [按空格或回车键继续...] ")
+			for {
+				n, err := os.Stdin.Read(buf)
+				if err == nil && n > 0 {
+					if buf[0] == 27 || buf[0] == 3 {
+						restoreTerminal(true)
+						prog.Save()
+						os.Exit(0)
+					}
+					if buf[0] == 32 || buf[0] == 13 || buf[0] == 10 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Quiz Summary Banner
+	fmt.Print("\033[H\033[2J")
+	W := 70
+	border := strings.Repeat("─", W-2)
+	fmt.Printf("%s┌%s┐%s\r\n", colorCyan, border, colorReset)
+	scorePct := float64(correctCount) / float64(len(shuffled)) * 100
+	summary := fmt.Sprintf(" 🎯【阶段检测完成】共测试 %d 词 · 正确 %d 词 (%.0f%%)", len(shuffled), correctCount, scorePct)
+	fmt.Printf("%s│%s %-66s%s│%s\r\n", colorCyan, colorBold, summary, colorCyan, colorReset)
+	fmt.Printf("%s├%s┤%s\r\n", colorCyan, border, colorReset)
+	if correctCount == len(shuffled) {
+		fmt.Printf("%s│%s  %s🌟 太棒了！全部回答正确，形近词辨析完全过关！%s                       %s│%s\r\n",
+			colorCyan, colorReset, colorGreen, colorReset, colorCyan, colorReset)
+	} else {
+		fmt.Printf("%s│%s  %s💡 答错的词已自动归入错题本，稍后将通过艾宾浩斯曲线加强复习。%s      %s│%s\r\n",
+			colorCyan, colorReset, colorYellow, colorReset, colorCyan, colorReset)
+	}
+	fmt.Printf("%s└%s┘%s\r\n", colorCyan, border, colorReset)
+	fmt.Println("  [3秒后自动恢复正常词汇学习，或按任意键立即继续...]")
+
+	prog.Save()
+
+	// Wait up to 3s or key
+	tEnd := time.Now().Add(3 * time.Second)
+	buf := make([]byte, 16)
+	for time.Now().Before(tEnd) {
+		n, err := os.Stdin.Read(buf)
+		if err == nil && n > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	fmt.Print("\033[H\033[2J\033[3J")
+}
+
+// runStandaloneQuiz runs continuous multiple-choice quiz
+func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio.Player, prog *state.StudyProgress, mode ViewMode, restoreTerminal func(bool)) {
+	fmt.Print("\033[H\033[2J\033[3J")
+	buf := make([]byte, 16)
+	qIdx := 0
+
+	for {
+		if qIdx >= len(queue) {
+			restoreTerminal(false)
+			fmt.Println("\r\nall quiz questions completed.")
+			return
+		}
+
+		w := queue[qIdx].Word
+		q := quizEngine.GenerateQuestion(w)
+		player.PlayAsync(w.Word, w.Definition)
+
+		renderQuizQuestion(mode, qIdx+1, len(queue), q)
+
+		userChoice := -1
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil || n == 0 {
+				continue
+			}
+			b := buf[0]
+
+			if b == 27 || b == 3 {
+				restoreTerminal(true)
+				prog.Save()
+				os.Exit(0)
+			}
+			if b == 32 {
+				player.PlayAsync(w.Word, w.Definition)
+				continue
+			}
+			if b == 'a' || b == 'A' || b == '1' {
+				userChoice = 0
+				break
+			}
+			if b == 'b' || b == 'B' || b == '2' {
+				userChoice = 1
+				break
+			}
+			if b == 'c' || b == 'C' || b == '3' {
+				userChoice = 2
+				break
+			}
+			if b == 'd' || b == 'D' || b == '4' {
+				userChoice = 3
+				break
+			}
+		}
+
+		isCorrect := (userChoice == q.CorrectIndex)
+		if isCorrect {
+			prog.RecordSuccess(w.Word, queue[qIdx].IsReview)
+			showQuizAnswerResult(mode, true, userChoice, q, player)
+			time.Sleep(1200 * time.Millisecond)
+		} else {
+			prog.RecordError(w.Word)
+			showQuizAnswerResult(mode, false, userChoice, q, player)
+			fmt.Print("\r\n  [按空格或回车键继续下一题...] ")
+			for {
+				n, err := os.Stdin.Read(buf)
+				if err == nil && n > 0 {
+					if buf[0] == 27 || buf[0] == 3 {
+						restoreTerminal(true)
+						prog.Save()
+						os.Exit(0)
+					}
+					if buf[0] == 32 || buf[0] == 13 || buf[0] == 10 {
+						break
+					}
+				}
+			}
+		}
+
+		prog.Save()
+		qIdx++
+	}
+}
+
+func renderQuizQuestion(mode ViewMode, current, total int, q quiz.Question) {
+	fmt.Print("\033[H\033[2J") // Clear screen
+
+	w := q.TargetWord
+	pho := w.USPhonetic
+	if pho == "" {
+		pho = w.UKPhonetic
+	}
+	phoStr := ""
+	if pho != "" {
+		phoStr = fmt.Sprintf("/%s/", pho)
+	}
+
+	switch mode {
+	case ModeCard:
+		W := 70
+		border := strings.Repeat("─", W-2)
+
+		fmt.Printf("%s┌%s┐%s\r\n", colorCyan, border, colorReset)
+		title := fmt.Sprintf(" 🎯【考研英文选中文 · 辨析测验】 第 %d/%d 题", current, total)
+		fmt.Printf("%s│%s %-66s%s│%s\r\n", colorCyan, colorBold, title, colorCyan, colorReset)
+		fmt.Printf("%s├%s┤%s\r\n", colorCyan, border, colorReset)
+
+		// Target word & phonetic
+		fmt.Printf("%s│%s  %s%-24s%s %s%-38s%s%s│%s\r\n",
+			colorCyan, colorReset, colorBold, w.Word, colorReset, colorYellow, phoStr, colorReset, colorCyan, colorReset)
+
+		if w.Example != "" {
+			maskedEx := maskTargetWord(w.Example, w.Word)
+			exLine := fmt.Sprintf("  语境: %s", maskedEx)
+			exLine = truncateToVisualWidth(exLine, 64)
+			fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, exLine, colorCyan, colorReset)
+		}
+
+		fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
+
+		// 4 Options
+		for _, opt := range q.Options {
+			optLine := fmt.Sprintf("  [%s] %s", opt.Label, opt.Definition)
+			optLine = truncateToVisualWidth(optLine, 64)
+			fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, optLine, colorCyan, colorReset)
+		}
+
+		fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
+		fmt.Printf("%s└%s┘%s\r\n", colorCyan, border, colorReset)
+		fmt.Printf("  %s请按 [A/B/C/D] 或 [1/2/3/4] 键选择 (按空格重播发音):%s █", colorBold, colorReset)
+
+	case ModeTest, ModeLog:
+		fmt.Printf("\r\n=== RUN   TestMetricCollector/EvalChoice_%04d [%s] %s\r\n", current, w.Word, phoStr)
+		if w.Example != "" {
+			fmt.Printf("    collector_test.go:40: [context] %s\r\n", maskTargetWord(w.Example, w.Word))
+		}
+		for i, opt := range q.Options {
+			fmt.Printf("    collector_test.go:%d: [opt_%s] %s\r\n", 41+i, strings.ToLower(opt.Label), opt.Definition)
+		}
+		fmt.Printf("    collector_test.go:45: [select] █")
+	}
+}
+
+func showQuizAnswerResult(mode ViewMode, isCorrect bool, userChoice int, q quiz.Question, player *audio.Player) {
+	fmt.Print("\033[2K\r")
+
+	correctOpt := q.Options[q.CorrectIndex]
+
+	switch mode {
+	case ModeCard:
+		if isCorrect {
+			fmt.Printf("  %s✔ 回答正确！%s 熟练掌握 [%s]\r\n", colorGreen, colorReset, q.TargetWord.Word)
+		} else {
+			var chosenWord string
+			if userChoice >= 0 && userChoice < len(q.Options) {
+				chosenWord = q.Options[userChoice].Word
+			}
+			fmt.Printf("  %s✗ 选错了！%s 你选了 [%s] %s\r\n",
+				colorRed, colorReset, q.Options[userChoice].Label, chosenWord)
+			fmt.Printf("  %s★ 正确答案是 [%s] %s%s\r\n",
+				colorGreen, correctOpt.Label, q.TargetWord.Word, colorReset)
+			// Replay audio
+			player.PlayAsync(q.TargetWord.Word, q.TargetWord.Definition)
+		}
+
+		// Show Distractor Breakdown side-by-side
+		fmt.Printf("%s  【形近/易混淆词对比辨析】%s\r\n", colorYellow, colorReset)
+		for _, opt := range q.Options {
+			mark := " "
+			if opt.IsCorrect {
+				mark = colorGreen + "★ 正确释义" + colorReset
+			} else {
+				mark = colorGray + "形近混淆项" + colorReset
+			}
+			fmt.Printf("    • %s%-12s%s : %s  (%s)\r\n",
+				colorBold, opt.Word, colorReset, opt.Definition, mark)
+		}
+
+	case ModeTest, ModeLog:
+		if isCorrect {
+			fmt.Printf("    collector_test.go:46: %s[pass] verified answer=[%s] token=%q%s\r\n",
+				colorGreen, correctOpt.Label, q.TargetWord.Word, colorReset)
+			fmt.Printf("--- PASS: TestMetricCollector/EvalChoice_%04d (0.35s)\r\n", rand.Intn(1000))
+		} else {
+			fmt.Printf("    collector_test.go:46: %s[fail] mismatch expected=[%s] token=%q got=[%s]%s\r\n",
+				colorRed, correctOpt.Label, q.TargetWord.Word, q.Options[userChoice].Label, colorReset)
+			fmt.Printf("--- FAIL: TestMetricCollector/EvalChoice_%04d (0.12s)\r\n", rand.Intn(1000))
+		}
+	}
+}
+
+func maskTargetWord(sentence, target string) string {
+	tLower := strings.ToLower(target)
+	words := strings.Fields(sentence)
+	var res []string
+	for _, w := range words {
+		clean := strings.ToLower(strings.Trim(w, ".,!?;:\"()[]"))
+		if clean == tLower || strings.HasPrefix(clean, tLower) {
+			res = append(res, "[____]")
+		} else {
+			res = append(res, w)
+		}
+	}
+	return strings.Join(res, " ")
 }
 
 func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, prog *state.StudyProgress) {
@@ -427,7 +802,7 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 		}
 
 		fmt.Printf("%s└%s┘%s\r\n", colorCyan, border, colorReset)
-		fmt.Printf("%s  [空格] 发音 | [Tab] 提示 | [Ctrl+K] 秒杀 | [Ctrl+T] 伪装 | [Ctrl+V] 隐身 | [Esc] 退出%s\r\n", colorGray, colorReset)
+		fmt.Printf("%s  [空格] 发音 | [Tab] 提示 | [Ctrl+Q] 即时测验 | [Ctrl+K] 秒杀 | [Ctrl+T] 伪装 | [Esc] 退出%s\r\n", colorGray, colorReset)
 
 	case ModeTest:
 		fmt.Printf("\r\n=== RUN   TestMetricCollector/QueryPoint_%04d [%s] /%s/\r\n",
