@@ -32,6 +32,7 @@ const (
 	colorYellow = "\033[33m"
 	colorBlue   = "\033[34m"
 	colorGray   = "\033[90m"
+	colorRed    = "\033[31m"
 )
 
 var ambientLogs = []string{
@@ -72,7 +73,6 @@ func main() {
 	showDef := *flagShowDef
 	player := audio.NewPlayer(2) // 2: US Accent
 
-	// Index bank words for fast lookup
 	wordMap := make(map[string]vocab.Word, len(bank.Words))
 	for _, w := range bank.Words {
 		wordMap[strings.ToLower(w.Word)] = w
@@ -160,11 +160,11 @@ func main() {
 	fmt.Print("\033[H\033[2J\033[3J")
 	printStartupLogs()
 
-	buf := make([]byte, 3)
+	buf := make([]byte, 64)
 	nonce := 9840 + prog.CurrentIndex
 	queueIndex := 0
 
-	WordLoop:
+WordLoop:
 	for {
 		if queueIndex >= len(queue) {
 			restoreTerminal(false)
@@ -195,106 +195,126 @@ func main() {
 				break
 			}
 
-			b := buf[0]
+			// Process all incoming bytes in buffer (supports fast typing and multi-byte inputs)
+			for i := 0; i < n; i++ {
+				b := buf[i]
 
-			// Esc (27) or Ctrl+C (3) -> Boss Key: instant full wipe
-			if b == 27 || b == 3 {
-				restoreTerminal(true)
-				prog.Save()
-				return
-			}
-
-			// Ctrl+K (11) or Ctrl+E (5) -> Kill word / Mark as fully known / Mastered (斩词秒杀)
-			if b == 11 || b == 5 {
-				prog.MarkMastered(target)
-				player.Stop()
-
-				ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
-				fmt.Print("\033[2K\r")
-				fmt.Printf("%s%s\t%sINFO%s\tstorage/filter.go:34\ttoken marked permanent_bypass target=%q status=skipped\r\n",
-					colorGray, ts, colorGreen, colorReset, target)
-
-				if !item.IsReview && prog.CurrentIndex < len(bank.Words)-1 {
-					prog.CurrentIndex++
+				// Esc (27) or Ctrl+C (3) -> Boss Key: instant full wipe
+				if b == 27 || b == 3 {
+					restoreTerminal(true)
+					prog.Save()
+					return
 				}
-				time.Sleep(100 * time.Millisecond)
-				queueIndex++
-				prog.Save()
-				continue WordLoop
-			}
 
-			// Ctrl+V (22) -> Toggle definition visibility and wipe scrollback
-			if b == 22 {
-				showDef = !showDef
-				if !showDef {
-					fmt.Print("\033[H\033[2J\033[3J")
-					printStartupLogs()
+				// Ctrl+K (11) or Ctrl+E (5) -> Kill word / Mark as fully known / Mastered (斩词秒杀)
+				if b == 11 || b == 5 {
+					prog.MarkMastered(target)
+					player.Stop()
+
+					ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+					fmt.Print("\033[2K\r")
+					fmt.Printf("%s%s\t%sINFO%s\tstorage/filter.go:34\ttoken marked permanent_bypass target=%q status=skipped\r\n",
+						colorGray, ts, colorGreen, colorReset, target)
+
+					if !item.IsReview && prog.CurrentIndex < len(bank.Words)-1 {
+						prog.CurrentIndex++
+					}
+					time.Sleep(80 * time.Millisecond)
+					queueIndex++
+					prog.Save()
+					continue WordLoop
 				}
-				renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
-				continue
-			}
 
-			// Ctrl+P (16) -> Print disguised telemetry progress stats in log
-			if b == 16 {
-				ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
-				remaining := len(bank.Words) - len(prog.Records)
-				if remaining < 0 {
-					remaining = 0
-				}
-				fmt.Print("\033[2K\r")
-				fmt.Printf("%s%s\t%sINFO%s\ttelemetry/metric.go:50\tsync stats offset=%d/%d left=%d today_new=%d/%d today_rev=%d due_queue=%d\r\n",
-					colorGray, ts, colorBlue, colorReset,
-					prog.CurrentIndex+1, len(bank.Words), remaining,
-					prog.DailyNewCount, prog.DailyGoal, prog.DailyRevCount, len(prog.GetDueReviewWords()))
-				renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
-				continue
-			}
-
-			// Space (32) -> Replay Bilingual Audio into headphones
-			if b == 32 {
-				player.PlayAsync(target, item.Word.Definition)
-				continue
-			}
-
-			// Backspace (127 or 8)
-			if b == 127 || b == 8 {
-				if len(input) > 0 {
-					input = input[:len(input)-1]
+				// Ctrl+V (22) -> Toggle definition visibility and wipe scrollback
+				if b == 22 {
+					showDef = !showDef
+					if !showDef {
+						fmt.Print("\033[H\033[2J\033[3J")
+						printStartupLogs()
+					}
 					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+					continue
 				}
-				continue
-			}
 
-			// Tab (9) or '?' (63) -> Hint: reveal next letter
-			if b == 9 || b == 63 {
-				if len(input) < len(target) {
-					input += string(target[len(input)])
-					wordError = true
+				// Ctrl+P (16) -> Print disguised telemetry progress stats in log
+				if b == 16 {
+					ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
+					remaining := len(bank.Words) - len(prog.Records)
+					if remaining < 0 {
+						remaining = 0
+					}
+					fmt.Print("\033[2K\r")
+					fmt.Printf("%s%s\t%sINFO%s\ttelemetry/metric.go:50\tsync stats offset=%d/%d left=%d today_new=%d/%d today_rev=%d due_queue=%d\r\n",
+						colorGray, ts, colorBlue, colorReset,
+						prog.CurrentIndex+1, len(bank.Words), remaining,
+						prog.DailyNewCount, prog.DailyGoal, prog.DailyRevCount, len(prog.GetDueReviewWords()))
 					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
-					if input == target {
-						goto WordCompleted
+					continue
+				}
+
+				// Space (32) -> If input is empty, replay Audio into headphones; if word has space, append space
+				if b == 32 {
+					if len(input) == 0 || !strings.Contains(target, " ") {
+						player.PlayAsync(target, item.Word.Definition)
+						continue
 					}
 				}
-				continue
-			}
 
-			// Letter typing
-			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '-' || b == ' ' || b == '\'' {
-				charTyped := strings.ToLower(string(b))
-				expectedChar := ""
-				if len(input) < len(target) {
-					expectedChar = string(target[len(input)])
+				// Backspace (127 or 8)
+				if b == 127 || b == 8 {
+					if len(input) > 0 {
+						input = input[:len(input)-1]
+						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+					}
+					continue
 				}
 
-				if expectedChar != "" && charTyped == expectedChar {
+				// Tab (9) or '?' (63) -> Hint: reveal next correct letter
+				if b == 9 || b == 63 {
+					if len(input) < len(target) {
+						input += string(target[len(input)])
+						wordError = true
+						renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
+						if input == target {
+							goto WordCompleted
+						}
+					}
+					continue
+				}
+
+				// Enter (13 or 10) -> Check word if full or clear typo
+				if b == 13 || b == 10 {
+					if input == target {
+						goto WordCompleted
+					} else {
+						wordError = true
+						// Flash line
+						fmt.Print("\a")
+					}
+					continue
+				}
+
+				// Letter & symbol typing (a-z, A-Z, '-', ' ', '\'')
+				if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '-' || b == ' ' || b == '\'' {
+					charTyped := strings.ToLower(string(b))
+
+					// Allow typing freely so the user always sees their keystrokes!
+					if len(input) < len(target) {
+						expectedChar := string(target[len(input)])
+						if charTyped != expectedChar {
+							wordError = true
+						}
+					} else {
+						wordError = true
+					}
+
 					input += charTyped
 					renderPromptLine(nonce, prog.CurrentIndex+1, len(bank.Words), item, input, showDef)
 
+					// If matches target exactly, word is completed!
 					if input == target {
 						goto WordCompleted
 					}
-				} else {
-					wordError = true
 				}
 			}
 		}
@@ -330,7 +350,7 @@ func main() {
 		fmt.Printf("%s%s\t%sINFO%s\tingress/auth.go:72\tsession handshake verified nonce=%d status=200 latency_ms=%d\r\n",
 			colorGray, ts, colorBlue, colorReset, nonce, ms)
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(80 * time.Millisecond)
 
 		// Print realistic background ambient log occasionally
 		if rand.Float32() < 0.35 {
@@ -359,6 +379,27 @@ func printLog(t time.Time, level, caller, msg string) {
 	fmt.Printf("%s%s\t%s%s%s\t%s\t%s\r\n", colorGray, ts, colorBlue, level, colorReset, caller, msg)
 }
 
+func cleanDefinition(raw string) string {
+	lines := strings.Split(raw, "\n")
+	var candidate string
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l != "" && !strings.HasPrefix(l, "aux.") && !strings.HasPrefix(l, "abbr.") {
+			candidate = l
+			break
+		}
+	}
+	if candidate == "" && len(lines) > 0 {
+		candidate = strings.TrimSpace(lines[0])
+	}
+	candidate = strings.ReplaceAll(candidate, "\n", " ")
+	runes := []rune(candidate)
+	if len(runes) > 30 {
+		return string(runes[:30]) + ".."
+	}
+	return candidate
+}
+
 func renderPromptLine(nonce, current, total int, item StudyItem, input string, showDef bool) {
 	ts := time.Now().Format("2006-01-02T15:04:05.000-0700")
 	fmt.Print("\033[2K\r") // Clear current line
@@ -368,15 +409,37 @@ func renderPromptLine(nonce, current, total int, item StudyItem, input string, s
 		reqType = "retry"
 	}
 
+	target := strings.ToLower(strings.TrimSpace(item.Word.Word))
+	targetLen := len(target)
+	coloredInput := formatInput(input, target)
+
 	if showDef {
-		cleanDef := strings.ReplaceAll(item.Word.Definition, "\n", " ")
-		if len(cleanDef) > 32 {
-			cleanDef = cleanDef[:32] + ".."
-		}
-		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tevaluating rule expr=%q offset=%q type=%s token=%s%s%s%s█%s",
-			colorGray, ts, colorYellow, colorReset, cleanDef, fmt.Sprintf("%d/%d", current, total), reqType, colorCyan, input, colorReset, colorGreen, colorReset)
+		def := cleanDefinition(item.Word.Definition)
+		fmt.Printf("%s%s\t%sDEBUG%s\tevaluator/rule.go:88\tevaluating rule expr=%q offset=\"%d/%d\" len=%d type=%s token=%s█%s",
+			colorGray, ts, colorYellow, colorReset, def, current, total, targetLen, reqType, coloredInput, colorReset)
 	} else {
-		fmt.Printf("%s%s\t%sDEBUG%s\tingress/auth.go:64\tverifying session payload offset=%q type=%s token=%s%s%s%s█%s",
-			colorGray, ts, colorYellow, colorReset, fmt.Sprintf("%d/%d", current, total), reqType, colorCyan, input, colorReset, colorGreen, colorReset)
+		fmt.Printf("%s%s\t%sDEBUG%s\tingress/auth.go:64\tverifying session payload offset=\"%d/%d\" len=%d type=%s token=%s█%s",
+			colorGray, ts, colorYellow, colorReset, current, total, targetLen, reqType, coloredInput, colorReset)
 	}
+}
+
+func formatInput(input, target string) string {
+	if input == "" {
+		return ""
+	}
+	var b strings.Builder
+	for i := 0; i < len(input); i++ {
+		ch := input[i]
+		if i < len(target) && ch == target[i] {
+			b.WriteString(colorCyan)
+			b.WriteByte(ch)
+			b.WriteString(colorReset)
+		} else {
+			// Typo character: highlighted in red so user knows immediately
+			b.WriteString(colorRed)
+			b.WriteByte(ch)
+			b.WriteString(colorReset)
+		}
+	}
+	return b.String()
 }
