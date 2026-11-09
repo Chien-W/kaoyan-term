@@ -188,7 +188,7 @@ func main() {
 
 	// Standalone Quiz Mode (-quiz)
 	if *flagQuiz {
-		runStandaloneQuiz(queue, quizEngine, player, prog, currentMode, restoreTerminal)
+		runStandaloneQuiz(queue, quizEngine, player, prog, &currentMode, restoreTerminal)
 		return
 	}
 
@@ -207,7 +207,7 @@ WordLoop:
 		if queueIndex >= len(queue) {
 			// If any words in batchBuffer, run final quiz
 			if len(batchBuffer) > 0 {
-				runCheckpointQuiz(batchBuffer, quizEngine, player, prog, currentMode, restoreTerminal)
+				runCheckpointQuiz(batchBuffer, quizEngine, player, prog, &currentMode, restoreTerminal)
 				batchBuffer = nil
 			}
 			restoreTerminal(false)
@@ -306,7 +306,7 @@ WordLoop:
 					} else {
 						wordsToQuiz = []vocab.Word{item.Word}
 					}
-					runCheckpointQuiz(wordsToQuiz, quizEngine, player, prog, currentMode, restoreTerminal)
+					runCheckpointQuiz(wordsToQuiz, quizEngine, player, prog, &currentMode, restoreTerminal)
 					batchBuffer = nil
 					// Re-render current word
 					renderWordHeader(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, prog)
@@ -412,14 +412,14 @@ WordLoop:
 		// Trigger Checkpoint Quiz every N words
 		if batchSize > 0 && len(batchBuffer) >= batchSize {
 			time.Sleep(200 * time.Millisecond)
-			runCheckpointQuiz(batchBuffer, quizEngine, player, prog, currentMode, restoreTerminal)
+			runCheckpointQuiz(batchBuffer, quizEngine, player, prog, &currentMode, restoreTerminal)
 			batchBuffer = nil
 		}
 	}
 }
 
 // runCheckpointQuiz executes multiple choice testing for a batch of recently learned words
-func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audio.Player, prog *state.StudyProgress, mode ViewMode, restoreTerminal func(bool)) {
+func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audio.Player, prog *state.StudyProgress, mode *ViewMode, restoreTerminal func(bool)) {
 	if len(words) == 0 {
 		return
 	}
@@ -438,7 +438,7 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 		q := quizEngine.GenerateQuestion(w)
 		player.PlayEnglishOnly(w.Word)
 
-		renderQuizQuestion(mode, qIdx+1, len(shuffled), q)
+		renderQuizQuestion(*mode, qIdx+1, len(shuffled), q)
 
 		// Wait for single-key choice A/B/C/D or 1/2/3/4
 		userChoice := -1
@@ -464,6 +464,28 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 				restoreTerminal(true)
 				prog.Save()
 				os.Exit(0)
+			}
+
+			// Ctrl+T (20): Toggle View Mode (Card View <-> Go Test Disguise)
+			if b == 20 {
+				if *mode == ModeCard {
+					*mode = ModeTest
+				} else {
+					*mode = ModeCard
+				}
+				renderQuizQuestion(*mode, qIdx+1, len(shuffled), q)
+				continue
+			}
+
+			// Ctrl+V (22): Toggle Stealth Mode (Rich View <-> Stealth Microservice Log)
+			if b == 22 {
+				if *mode == ModeLog {
+					*mode = ModeCard
+				} else {
+					*mode = ModeLog
+				}
+				renderQuizQuestion(*mode, qIdx+1, len(shuffled), q)
+				continue
 			}
 
 			// Space: replay English audio
@@ -497,12 +519,12 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 		isCorrect := (userChoice == q.CorrectIndex)
 		if isCorrect {
 			correctCount++
-			showQuizAnswerResult(mode, true, userChoice, q, player)
+			showQuizAnswerResult(*mode, true, userChoice, q, player)
 			player.PlayAsync(w.Word, w.Definition)
 			time.Sleep(1200 * time.Millisecond)
 		} else {
 			prog.RecordError(w.Word)
-			showQuizAnswerResult(mode, false, userChoice, q, player)
+			showQuizAnswerResult(*mode, false, userChoice, q, player)
 			// Wait for user confirmation on mistake
 			fmt.Print("\r\n  [按空格或回车键继续...] ")
 			for {
@@ -520,6 +542,22 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 						restoreTerminal(true)
 						prog.Save()
 						os.Exit(0)
+					}
+					if buf[0] == 20 { // Ctrl+T
+						if *mode == ModeCard {
+							*mode = ModeTest
+						} else {
+							*mode = ModeCard
+						}
+						break
+					}
+					if buf[0] == 22 { // Ctrl+V
+						if *mode == ModeLog {
+							*mode = ModeCard
+						} else {
+							*mode = ModeLog
+						}
+						break
 					}
 					if buf[0] == 32 || buf[0] == 13 || buf[0] == 10 {
 						break
@@ -564,7 +602,7 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 }
 
 // runStandaloneQuiz runs continuous multiple-choice quiz
-func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio.Player, prog *state.StudyProgress, mode ViewMode, restoreTerminal func(bool)) {
+func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio.Player, prog *state.StudyProgress, mode *ViewMode, restoreTerminal func(bool)) {
 	fmt.Print("\033[H\033[2J\033[3J")
 	buf := make([]byte, 16)
 	qIdx := 0
@@ -581,7 +619,7 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 		q := quizEngine.GenerateQuestion(w)
 		player.PlayEnglishOnly(w.Word)
 
-		renderQuizQuestion(mode, qIdx+1, len(queue), q)
+		renderQuizQuestion(*mode, qIdx+1, len(queue), q)
 
 		userChoice := -1
 		for {
@@ -604,6 +642,29 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 				prog.Save()
 				os.Exit(0)
 			}
+
+			// Ctrl+T (20): Toggle View Mode (Card View <-> Go Test Disguise)
+			if b == 20 {
+				if *mode == ModeCard {
+					*mode = ModeTest
+				} else {
+					*mode = ModeCard
+				}
+				renderQuizQuestion(*mode, qIdx+1, len(queue), q)
+				continue
+			}
+
+			// Ctrl+V (22): Toggle Stealth Mode (Rich View <-> Stealth Microservice Log)
+			if b == 22 {
+				if *mode == ModeLog {
+					*mode = ModeCard
+				} else {
+					*mode = ModeLog
+				}
+				renderQuizQuestion(*mode, qIdx+1, len(queue), q)
+				continue
+			}
+
 			if b == 32 {
 				player.PlayEnglishOnly(w.Word)
 				continue
@@ -629,12 +690,12 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 		isCorrect := (userChoice == q.CorrectIndex)
 		if isCorrect {
 			prog.RecordSuccess(w.Word, queue[qIdx].IsReview)
-			showQuizAnswerResult(mode, true, userChoice, q, player)
+			showQuizAnswerResult(*mode, true, userChoice, q, player)
 			player.PlayAsync(w.Word, w.Definition)
 			time.Sleep(1200 * time.Millisecond)
 		} else {
 			prog.RecordError(w.Word)
-			showQuizAnswerResult(mode, false, userChoice, q, player)
+			showQuizAnswerResult(*mode, false, userChoice, q, player)
 			fmt.Print("\r\n  [按空格或回车键继续下一题...] ")
 			for {
 				n, err := os.Stdin.Read(buf)
@@ -651,6 +712,22 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 						restoreTerminal(true)
 						prog.Save()
 						os.Exit(0)
+					}
+					if buf[0] == 20 { // Ctrl+T
+						if *mode == ModeCard {
+							*mode = ModeTest
+						} else {
+							*mode = ModeCard
+						}
+						break
+					}
+					if buf[0] == 22 { // Ctrl+V
+						if *mode == ModeLog {
+							*mode = ModeCard
+						} else {
+							*mode = ModeLog
+						}
+						break
 					}
 					if buf[0] == 32 || buf[0] == 13 || buf[0] == 10 {
 						break
@@ -709,9 +786,10 @@ func renderQuizQuestion(mode ViewMode, current, total int, q quiz.Question) {
 
 		fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
 		fmt.Printf("%s└%s┘%s\r\n", colorCyan, border, colorReset)
-		fmt.Printf("  %s请按 [A/B/C/D] 或 [1/2/3/4] 键选择 (按空格重播发音):%s █", colorBold, colorReset)
+		fmt.Printf("%s  [1/2/3/4] 选择 | [空格] 重听 | [Ctrl+T] 测试模式 | [Ctrl+V] 日志模式 | [Esc] 退出%s\r\n", colorGray, colorReset)
+		fmt.Printf("  %s请按 [A/B/C/D] 或 [1/2/3/4] 键选择:%s █", colorBold, colorReset)
 
-	case ModeTest, ModeLog:
+	case ModeTest:
 		fmt.Printf("\r\n=== RUN   TestMetricCollector/EvalChoice_%04d [%s] %s\r\n", current, w.Word, phoStr)
 		if w.Example != "" {
 			fmt.Printf("    collector_test.go:40: [context] %s\r\n", maskTargetWord(w.Example, w.Word))
@@ -720,6 +798,21 @@ func renderQuizQuestion(mode ViewMode, current, total int, q quiz.Question) {
 			fmt.Printf("    collector_test.go:%d: [opt_%s] %s\r\n", 41+i, strings.ToLower(opt.Label), opt.Definition)
 		}
 		fmt.Printf("    collector_test.go:45: [select] █")
+
+	case ModeLog:
+		ts := time.Now().Format("15:04:05.000")
+		fmt.Printf("\r\n%s%s\t%sINFO%s\teval_metric.go:40\tbatch evaluation [%d/%d] target_token=%q %s\r\n",
+			colorGray, ts, colorBlue, colorReset, current, total, w.Word, phoStr)
+		if w.Example != "" {
+			fmt.Printf("%s%s\t%sDEBUG%s\teval_metric.go:41\tcontext_payload=%q\r\n",
+				colorGray, ts, colorYellow, colorReset, maskTargetWord(w.Example, w.Word))
+		}
+		for i, opt := range q.Options {
+			fmt.Printf("%s%s\t%sDEBUG%s\teval_metric.go:%d\topt_%s=%q\r\n",
+				colorGray, ts, colorYellow, colorReset, 42+i, strings.ToLower(opt.Label), opt.Definition)
+		}
+		fmt.Printf("%s%s\t%sINFO%s\teval_metric.go:46\tselect=[A/B/C/D] █",
+			colorGray, ts, colorBlue, colorReset)
 	}
 }
 
@@ -758,7 +851,7 @@ func showQuizAnswerResult(mode ViewMode, isCorrect bool, userChoice int, q quiz.
 				colorBold, opt.Word, colorReset, opt.Definition, mark)
 		}
 
-	case ModeTest, ModeLog:
+	case ModeTest:
 		if isCorrect {
 			fmt.Printf("    collector_test.go:46: %s[pass] verified answer=[%s] token=%q%s\r\n",
 				colorGreen, correctOpt.Label, q.TargetWord.Word, colorReset)
@@ -767,6 +860,16 @@ func showQuizAnswerResult(mode ViewMode, isCorrect bool, userChoice int, q quiz.
 			fmt.Printf("    collector_test.go:46: %s[fail] mismatch expected=[%s] token=%q got=[%s]%s\r\n",
 				colorRed, correctOpt.Label, q.TargetWord.Word, q.Options[userChoice].Label, colorReset)
 			fmt.Printf("--- FAIL: TestMetricCollector/EvalChoice_%04d (0.12s)\r\n", rand.Intn(1000))
+		}
+
+	case ModeLog:
+		ts := time.Now().Format("15:04:05.000")
+		if isCorrect {
+			fmt.Printf("\r\n%s%s\t%sINFO%s\teval_metric.go:48\thandshake verified answer=[%s] token=%q latency_ms=180\r\n",
+				colorGray, ts, colorBlue, colorReset, correctOpt.Label, q.TargetWord.Word)
+		} else {
+			fmt.Printf("\r\n%s%s\t%sWARN%s\teval_metric.go:48\tmismatch expected=[%s] token=%q got=[%s] status=400\r\n",
+				colorGray, ts, colorRed, colorReset, correctOpt.Label, q.TargetWord.Word, q.Options[userChoice].Label)
 		}
 	}
 }
