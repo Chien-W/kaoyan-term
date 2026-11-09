@@ -78,6 +78,11 @@ func (p *Player) PlayAsync(word, definition string) {
 	go p.runPlay(ctx, word, definition)
 }
 
+// PlayEnglishOnly plays only English pronunciation without Chinese definition
+func (p *Player) PlayEnglishOnly(word string) {
+	p.PlayAsync(word, "")
+}
+
 func (p *Player) runPlay(ctx context.Context, word, definition string) {
 	if p.IsMuted() {
 		return

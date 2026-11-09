@@ -436,7 +436,7 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 	for qIdx, w := range shuffled {
 		drainStdin()
 		q := quizEngine.GenerateQuestion(w)
-		player.PlayAsync(w.Word, w.Definition)
+		player.PlayEnglishOnly(w.Word)
 
 		renderQuizQuestion(mode, qIdx+1, len(shuffled), q)
 
@@ -466,9 +466,9 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 				os.Exit(0)
 			}
 
-			// Space: replay audio
+			// Space: replay English audio
 			if b == 32 {
-				player.PlayAsync(w.Word, w.Definition)
+				player.PlayEnglishOnly(w.Word)
 				continue
 			}
 
@@ -498,6 +498,7 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 		if isCorrect {
 			correctCount++
 			showQuizAnswerResult(mode, true, userChoice, q, player)
+			player.PlayAsync(w.Word, w.Definition)
 			time.Sleep(1200 * time.Millisecond)
 		} else {
 			prog.RecordError(w.Word)
@@ -578,7 +579,7 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 		drainStdin()
 		w := queue[qIdx].Word
 		q := quizEngine.GenerateQuestion(w)
-		player.PlayAsync(w.Word, w.Definition)
+		player.PlayEnglishOnly(w.Word)
 
 		renderQuizQuestion(mode, qIdx+1, len(queue), q)
 
@@ -604,7 +605,7 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 				os.Exit(0)
 			}
 			if b == 32 {
-				player.PlayAsync(w.Word, w.Definition)
+				player.PlayEnglishOnly(w.Word)
 				continue
 			}
 			if b == 'a' || b == 'A' || b == '1' {
@@ -629,6 +630,7 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 		if isCorrect {
 			prog.RecordSuccess(w.Word, queue[qIdx].IsReview)
 			showQuizAnswerResult(mode, true, userChoice, q, player)
+			player.PlayAsync(w.Word, w.Definition)
 			time.Sleep(1200 * time.Millisecond)
 		} else {
 			prog.RecordError(w.Word)
