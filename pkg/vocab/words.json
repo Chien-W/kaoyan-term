@@ -664,20 +664,20 @@
     "definition": "aux.能,能够,可以,可能\nvt.将…装入密封罐中保存\nn.罐头,（用金属或塑料制作的）容器,（马口铁或其他金属制作的）食品罐头",
     "pos_items": [
       {
-        "type": "aux.",
-        "translation": "能；能够；可以；可能"
-      },
-      {
         "type": "vt.",
         "translation": "将…装入密封罐中保存"
       },
       {
         "type": "n.",
-        "translation": "罐头；（用金属或塑料制作的）容器；（马口铁或其他金属制作的）食品罐头"
+        "translation": "罐头；（马口铁或其他金属制作的）食品罐头"
+      },
+      {
+        "type": "aux.",
+        "translation": "能；能够；可以；可能"
       }
     ],
-    "example": "Small firms can adapt quickly to market changes.",
-    "example_trans": "小公司能迅速适应市场变化。",
+    "example": "The food factory cans fresh fruits and vegetables during the harvest season.",
+    "example_trans": "食品加工厂在丰收季节将新鲜水果和蔬菜装罐密封保存。",
     "exam_hits": 0,
     "category": "介词、连词与功能词",
     "frequency": 0.992806040827631,
@@ -4522,24 +4522,20 @@
     "definition": "adj.好的，上等的,纤细的，精致的,健康的,晴朗的\nn.罚款,[音乐]终止,晴天,地租\nvt.罚款,澄清\nadv.很好地,巧妙地",
     "pos_items": [
       {
-        "type": "adj.",
-        "translation": "好的，上等的；纤细的，精致的；健康的；晴朗的"
-      },
-      {
         "type": "n.",
-        "translation": "罚款；[音乐]终止；晴天；地租"
+        "translation": "罚款，罚金"
       },
       {
         "type": "vt.",
-        "translation": "罚款；澄清"
+        "translation": "处以罚金"
       },
       {
-        "type": "adv.",
-        "translation": "很好地；巧妙地"
+        "type": "adj.",
+        "translation": "好的；精细的"
       }
     ],
-    "example": "a parking fine",
-    "example_trans": "违规停车罚款",
+    "example": "The regulatory commission imposed a hefty fine on the polluting corporation.",
+    "example_trans": "监管委员会对这家排污企业处以巨额罚款。",
     "exam_hits": 1,
     "category": "优点、美德与正面评价",
     "frequency": 0.945345283968765,
@@ -4798,20 +4794,16 @@
     "definition": "vt.离开,遗弃,忘了带,交托\nvt.& vi.离去,出发,舍弃\nn.准假,假期,辞别,许可",
     "pos_items": [
       {
+        "type": "n.",
+        "translation": "准假；休假；假期；辞别；许可"
+      },
+      {
         "type": "vt.",
         "translation": "离开；遗弃；忘了带；交托"
-      },
-      {
-        "type": "vt.",
-        "translation": "& vi.离去；出发；舍弃"
-      },
-      {
-        "type": "n.",
-        "translation": "准假；假期；辞别；许可"
       }
     ],
-    "example": "Many graduates leave their hometowns to seek better jobs.",
-    "example_trans": "许多毕业生离开家乡去寻找更好的工作。",
+    "example": "Full-time employees are entitled to thirty days of paid annual leave.",
+    "example_trans": "全职雇员有权享受三十天的带薪年假（准假）。",
     "exam_hits": 0,
     "category": "移动、运输与位置变化(通用动词)",
     "frequency": 0.942538623473686,
@@ -6452,16 +6444,16 @@
     "definition": "n.分，分钟,瞬间，片刻,备忘录,会议记录\nvt.把…记录在案,为…测定时间",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "分，分钟；瞬间，片刻；备忘录；会议记录"
+        "type": "adj.",
+        "translation": "微小的；极细微的；详尽的，仔细的"
       },
       {
-        "type": "vt.",
-        "translation": "把…记录在案；为…测定时间"
+        "type": "n.",
+        "translation": "分，分钟；瞬间，片刻；备忘录；会议记录"
       }
     ],
-    "example": "The experiment requires only a minute amount of water.",
-    "example_trans": "这个实验只需要极少量的水。",
+    "example": "The high-precision instrument can detect minute traces of chemical pollutants.",
+    "example_trans": "这台高精度仪器能够检测出极微量微细的化学污染物。",
     "exam_hits": 0,
     "category": "时间、日期与时期",
     "frequency": 0.925423389095355,
@@ -6842,28 +6834,20 @@
     "definition": "vt.& vi.跑,移动,（使）流动\nn.奔跑,行程,放映期,一系列\nvi.（工作等）进行,延续,逃跑,行驶\nvt.使奔跑,使…快速移动,运行，经营,划\nadj.融化的,浇铸的,跑的筋疲力尽的",
     "pos_items": [
       {
-        "type": "vt.",
-        "translation": "& vi.跑；移动；（使）流动"
+        "type": "vi.",
+        "translation": "竞选；（工作等）进行；延续；跑"
       },
       {
         "type": "n.",
-        "translation": "奔跑；行程；放映期；一系列"
-      },
-      {
-        "type": "vi.",
-        "translation": "（工作等）进行；延续；逃跑；行驶"
+        "translation": "趋势；行程；放映期；奔跑"
       },
       {
         "type": "vt.",
-        "translation": "使奔跑；使…快速移动；运行，经营；划"
-      },
-      {
-        "type": "adj.",
-        "translation": "融化的；浇铸的；跑的筋疲力尽的"
+        "translation": "经营；运行；管理"
       }
     ],
-    "example": "the run of the market",
-    "example_trans": "市场的趋势",
+    "example": "The former governor announced his campaign to run for the presidency.",
+    "example_trans": "前州长宣布了他竞选总统的政治计划。",
     "exam_hits": 2,
     "category": "走、跑、跳与身体移动",
     "frequency": 0.921499460689992,
@@ -7764,24 +7748,20 @@
     "definition": "n.秒,瞬间,次货,第二份食物\nadj.第二的,次要的,居第二位的,另外的\nadv.第二,其次,以第二位\nvt.支持,临时调派,附议,赞成提案",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "秒；瞬间；次货；第二份食物"
+        "type": "vt.",
+        "translation": "附议；赞成提案；支持；临时调派"
       },
       {
         "type": "adj.",
-        "translation": "第二的；次要的；居第二位的；另外的"
+        "translation": "第二的；次要的"
       },
       {
-        "type": "adv.",
-        "translation": "第二；其次；以第二位"
-      },
-      {
-        "type": "vt.",
-        "translation": "支持；临时调派；附议；赞成提案"
+        "type": "n.",
+        "translation": "秒；瞬间"
       }
     ],
-    "example": "The second experiment produced more reliable results.",
-    "example_trans": "第二次实验产生了更可靠的结果。",
+    "example": "The committee member immediately stood up to second the motion.",
+    "example_trans": "委员会成员立即起立附议赞同支持该项动议。",
     "exam_hits": 0,
     "category": "顺序、频率与次序",
     "frequency": 0.912725542075645,
@@ -8200,19 +8180,15 @@
     "pos_items": [
       {
         "type": "vt.",
-        "translation": "检查，核对；制止，抑制；在…上打勾"
-      },
-      {
-        "type": "vi.",
-        "translation": "核实，查核；中止；打勾；[象棋]将一军"
+        "translation": "遏制，抑制；制止；检查，核对"
       },
       {
         "type": "n.",
-        "translation": "<美>支票；制止，抑制；检验，核对"
+        "translation": "支票；检查，检验"
       }
     ],
-    "example": "The manager will check the financial report carefully.",
-    "example_trans": "经理将仔细检查财务报告。",
+    "example": "Central banks raised interest rates sharply to check rampant inflation.",
+    "example_trans": "各国央行大幅提高利率以抑制遏制猖獗的通货膨胀。",
     "exam_hits": 0,
     "category": "金钱、银行与金融",
     "frequency": 0.907985083211628,
@@ -8291,20 +8267,16 @@
     "definition": "n.医生，大夫,博士,神学家,医疗设备\nvt.& vi.医疗，行医\nvt.修理，装配,假造,搀杂,修改，修饰",
     "pos_items": [
       {
+        "type": "vt.",
+        "translation": "篡改；伪造；修补"
+      },
+      {
         "type": "n.",
-        "translation": "医生，大夫；博士；神学家；医疗设备"
-      },
-      {
-        "type": "vt.",
-        "translation": "& vi.医疗，行医"
-      },
-      {
-        "type": "vt.",
-        "translation": "修理，装配；假造；搀杂；修改，修饰"
+        "translation": "医生；博士"
       }
     ],
-    "example": "The doctor advised him to rest for a week.",
-    "example_trans": "医生建议他休息一周。",
+    "example": "The fraudulent firm had doctored its balance sheets to deceive investors.",
+    "example_trans": "这家涉嫌欺诈的公司篡改伪造了资产负债表以欺骗投资者。",
     "exam_hits": 0,
     "category": "职业与职位",
     "frequency": 0.907252419541219,
@@ -9811,19 +9783,15 @@
     "pos_items": [
       {
         "type": "n.",
-        "translation": "游戏，运动；比赛，竞赛；诡计；猎物"
+        "translation": "猎物，野味；游戏，运动；比赛，竞赛"
       },
       {
         "type": "adj.",
-        "translation": "受伤的，瘸的；对…有兴趣的；雄赳赳的；关于野味的"
-      },
-      {
-        "type": "v.",
-        "translation": "打赌，赌输赢；赌输"
+        "translation": "勇敢的；关于野味的"
       }
     ],
-    "example": "Children learn social skills through cooperative games.",
-    "example_trans": "孩子们通过合作游戏学习社交技能。",
+    "example": "The wildlife reserve provides a safe habitat for endangered big game.",
+    "example_trans": "野生动物保护区为濒危的大型野生猎物（野味）提供了安全栖息地。",
     "exam_hits": 0,
     "category": "娱乐、游戏与休闲",
     "frequency": 0.89700103481874,
@@ -11332,24 +11300,16 @@
     "definition": "n.书,卷,课本,账簿\nvt.& vi.预订\nvt.登记,（向旅馆、饭店、戏院等）预约,立案（控告某人）,订立演出契约\nadj.书的,账簿上的,得之（或来自）书本的,按照（或依据）书本的",
     "pos_items": [
       {
+        "type": "vt.",
+        "translation": "预订，预约；登记"
+      },
+      {
         "type": "n.",
         "translation": "书；卷；课本；账簿"
-      },
-      {
-        "type": "vt.",
-        "translation": "& vi.预订"
-      },
-      {
-        "type": "vt.",
-        "translation": "登记；（向旅馆、饭店、戏院等）预约；立案（控告某人）；订立演出契约"
-      },
-      {
-        "type": "adj.",
-        "translation": "书的；账簿上的；得之（或来自）书本的；按照（或依据）书本的"
       }
     ],
-    "example": "You should book the tickets in advance.",
-    "example_trans": "你应该提前预订门票。",
+    "example": "Business travelers are strongly advised to book hotel rooms well in advance.",
+    "example_trans": "强烈建议商务旅客提前尽早预订酒店客房。",
     "exam_hits": 0,
     "category": "书籍、文献与图书馆",
     "frequency": 0.885232353808887,
@@ -12592,28 +12552,20 @@
     "definition": "n.声音，声响,音调，声调,声波,嘈杂声\nvi.响，发声,听起来，好像,回响,[音乐]乐器等被奏响\nvt.使出声，使发声,清楚地发出,宣布，发表,颂扬\nadj.健全的,合理的,完好的，无损的,明智的\nadv.彻底地，充分地",
     "pos_items": [
       {
+        "type": "adj.",
+        "translation": "健全的；合理的；可靠的；完好的，无损的"
+      },
+      {
         "type": "n.",
-        "translation": "声音，声响；音调，声调；声波；嘈杂声"
+        "translation": "声音，声响；音调，声调"
       },
       {
         "type": "vi.",
-        "translation": "响，发声；听起来，好像；回响；[音乐]乐器等被奏响"
-      },
-      {
-        "type": "vt.",
-        "translation": "使出声，使发声；清楚地发出；宣布，发表；颂扬"
-      },
-      {
-        "type": "adj.",
-        "translation": "健全的；合理的；完好的，无损的；明智的"
-      },
-      {
-        "type": "adv.",
-        "translation": "彻底地，充分地"
+        "translation": "响，发声；听起来，好像"
       }
     ],
-    "example": "sound economic development",
-    "example_trans": "健康的经济发展",
+    "example": "Sound legal and economic institutions are vital for sustainable development.",
+    "example_trans": "健全合理的法律与经济制度对可持续发展至关重要。",
     "exam_hits": 1,
     "category": "声音、喊叫与嗓音",
     "frequency": 0.87070756207149,
@@ -13140,16 +13092,16 @@
     "definition": "adj.安全的,保险的，肯定的,无损的,提供保护的\nn.保险箱，保险柜,冷藏箱,〈俚〉避孕套",
     "pos_items": [
       {
-        "type": "adj.",
-        "translation": "安全的；保险的，肯定的；无损的；提供保护的"
+        "type": "n.",
+        "translation": "保险箱，保险柜；冷藏箱"
       },
       {
-        "type": "n.",
-        "translation": "保险箱，保险柜；冷藏箱；〈俚〉避孕套"
+        "type": "adj.",
+        "translation": "安全的；可靠的"
       }
     ],
-    "example": "The new policy keeps personal data safe online.",
-    "example_trans": "新政策保障个人数据在网络上的安全。",
+    "example": "Confidential corporate patents are stored securely in the company safe.",
+    "example_trans": "机密的企业专利技术被安全地存放在公司的保险箱（柜）里。",
     "exam_hits": 0,
     "category": "安全、危险与风险",
     "frequency": 0.865621007055066,
@@ -14205,20 +14157,16 @@
     "definition": "n.表，目录,桌子,手术台，工作台，游戏台,平地层\nvt.制表,搁置,嵌合,搁置\nadj.桌子的",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "表，目录；桌子；手术台，工作台，游戏台；平地层"
-      },
-      {
         "type": "vt.",
-        "translation": "制表；搁置；嵌合；搁置"
+        "translation": "搁置（提案、讨论等）；制表"
       },
       {
-        "type": "adj.",
-        "translation": "桌子的"
+        "type": "n.",
+        "translation": "表，目录；桌子；手术台，工作台"
       }
     ],
-    "example": "The table below summarizes the key survey results.",
-    "example_trans": "下表总结了关键调查结果。",
+    "example": "The committee decided to table the controversial proposal until next year.",
+    "example_trans": "委员会决定将这项有争议的提案搁置到明年再议。",
     "exam_hits": 0,
     "category": "房间、家具与家居用品",
     "frequency": 0.856280382655086,
@@ -14694,20 +14642,20 @@
     "definition": "n.国家,州,状况，情况,资格\nvt.规定,陈述，声明\nadj.国家的,国务的，公务的,正式的",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "国家；州；状况，情况；资格"
+        "type": "vt.",
+        "translation": "陈述，声明；规定；阐明"
       },
       {
-        "type": "vt.",
-        "translation": "规定；陈述，声明"
+        "type": "n.",
+        "translation": "国家；州；状况，情况"
       },
       {
         "type": "adj.",
-        "translation": "国家的；国务的，公务的；正式的"
+        "translation": "国家的；正式的"
       }
     ],
-    "example": "The report states the current state of the economy.",
-    "example_trans": "报告陈述了当前的经济状况。",
+    "example": "The employment agreement clearly states the terms and severance conditions.",
+    "example_trans": "用工协议清晰明确地陈述阐明了聘用条款与离职补偿条件。",
     "exam_hits": 0,
     "category": "情况、环境与背景",
     "frequency": 0.853154981062969,
@@ -14932,19 +14880,15 @@
     "pos_items": [
       {
         "type": "n.",
-        "translation": "账单；钞票；清单；广告"
+        "translation": "法案，议案；账单；钞票；清单"
       },
       {
         "type": "vt.",
-        "translation": "安排；给…开账单；为…发提（货）单；把…登录在账"
-      },
-      {
-        "type": "vi.",
-        "translation": "鸟嘴相接触"
+        "translation": "安排；给…开账单；为…发提（货）单"
       }
     ],
-    "example": "the Education Reform Bill",
-    "example_trans": "教育改革法案",
+    "example": "The Senate voted overwhelmingly to pass the new environmental bill.",
+    "example_trans": "参议院以压倒性多数投票通过了这项新的环境法案。",
     "exam_hits": 2,
     "category": "金钱、银行与金融",
     "frequency": 0.850255550490741,
@@ -15258,20 +15202,16 @@
     "definition": "n.法院，法庭,院子，天井,宫廷,网球场\nvt.招致,设法获得,向…献殷勤,追求\nvi.求爱，求婚,寻求",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "法院，法庭；院子，天井；宫廷；网球场"
-      },
-      {
         "type": "vt.",
-        "translation": "招致；设法获得；向…献殷勤；追求"
+        "translation": "招致，自招；设法获得；向…献殷勤；追求"
       },
       {
-        "type": "vi.",
-        "translation": "求爱，求婚；寻求"
+        "type": "n.",
+        "translation": "法院，法庭；院子，天井；宫廷"
       }
     ],
-    "example": "the civil courts",
-    "example_trans": "民事法庭",
+    "example": "Ignoring workplace safety regulations is simply courting catastrophe.",
+    "example_trans": "忽视工作场所安全规程简直是在自招招致灾难。",
     "exam_hits": 9,
     "category": "法律、法规与司法",
     "frequency": 0.847509743348662,
@@ -24687,15 +24627,15 @@
     "pos_items": [
       {
         "type": "n.",
-        "translation": "兴趣，爱好；利害关系，利益；利息；趣味，感兴趣的事"
+        "translation": "利害关系，利益；利息；兴趣，爱好"
       },
       {
         "type": "vt.",
-        "translation": "使产生兴趣；使参与，使加入；引起…的意愿；使产生关系"
+        "translation": "使产生兴趣；使参与，使加入"
       }
     ],
-    "example": "the public interest",
-    "example_trans": "公众的利益",
+    "example": "The regulatory commission has a duty to safeguard the public interest.",
+    "example_trans": "监管委员会有责任捍卫维护公众利益。",
     "exam_hits": 2,
     "category": "心理态度与欲望",
     "frequency": 0.794431324710029,
@@ -25866,16 +25806,16 @@
     "definition": "n.地址,通信处,演说,称呼\nv.写姓名地址,演说,向…说话,称呼",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "地址；通信处；演说；称呼"
+        "type": "vt.",
+        "translation": "解决；处理；应对；向…致辞"
       },
       {
-        "type": "v.",
-        "translation": "写姓名地址；演说；向…说话；称呼"
+        "type": "n.",
+        "translation": "地址；演说，致辞"
       }
     ],
-    "example": "address an audience",
-    "example_trans": "向听众发表讲话",
+    "example": "The global conference formulated practical strategies to address climate change.",
+    "example_trans": "全球会议制定了切实可行的策略以解决和应对气候变化。",
     "exam_hits": 3,
     "category": "通讯、邮政与联络",
     "frequency": 0.78716749443281,
@@ -26612,11 +26552,11 @@
     "pos_items": [
       {
         "type": "n.",
-        "translation": "自然；天性；天理；类型"
+        "translation": "本质，本性；性质；天性；大自然"
       }
     ],
-    "example": "his better nature",
-    "example_trans": "他的善良本性",
+    "example": "Understanding the dual nature of economic globalization is crucial for policymakers.",
+    "example_trans": "理解经济全球化的双重本质属性对政策制定者至关重要。",
     "exam_hits": 2,
     "category": "环境、生态与污染",
     "frequency": 0.783474105405819,
@@ -28484,16 +28424,16 @@
     "definition": "n.水池,石油层,（液体等的）一滩,共同储金\nvi.使形成池塘或水洼,淤积,合伙经营,采（煤等）",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "水池；石油层；（液体等的）一滩；共同储金"
+        "type": "vt.",
+        "translation": "集中；汇集（资金、资源）"
       },
       {
-        "type": "vi.",
-        "translation": "使形成池塘或水洼；淤积；合伙经营；采（煤等）"
+        "type": "n.",
+        "translation": "共享资源池；水池"
       }
     ],
-    "example": "The pool in the garden attracts many birds.",
-    "example_trans": "花园里的池塘吸引了许多鸟。",
+    "example": "Several pharmaceutical companies pooled their research data to accelerate vaccine development.",
+    "example_trans": "数家制药公司集中汇集了研发数据以加速疫苗的研制。",
     "exam_hits": 0,
     "category": "水、海洋与河流",
     "frequency": 0.774577245541296,
@@ -28777,20 +28717,20 @@
     "definition": "n.主题，话题,学科，科目,[哲]主观\nadj.须服从…的,（在君主等）统治下的\nv.提供，提出,使…隶属",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "主题，话题；学科，科目；[哲]主观"
-      },
-      {
         "type": "adj.",
-        "translation": "须服从…的；（在君主等）统治下的"
+        "translation": "易受…影响的；受…支配的；须服从…的"
       },
       {
-        "type": "v.",
-        "translation": "提供，提出；使…隶属"
+        "type": "n.",
+        "translation": "主题，话题；学科，科目"
+      },
+      {
+        "type": "vt.",
+        "translation": "使遭受；使服从"
       }
     ],
-    "example": "my favourite subject",
-    "example_trans": "我最爱的学科",
+    "example": "Airline ticket prices are subject to frequent seasonal fluctuations.",
+    "example_trans": "机票价格易受季节性频繁波动的影响与支配。",
     "exam_hits": 1,
     "category": "学科、课程与学术研究",
     "frequency": 0.772984554246154,
@@ -32984,32 +32924,20 @@
     "definition": "adj.坚固的，坚牢的,坚定的，坚决的,严格的,确定的\nvt.& vi.使坚固,使坚实\nn.商号，商行,公司,企业,工作集体\nadv.坚定地，稳固地\nvt.使坚定，使牢固\nvi.变坚实，变稳固",
     "pos_items": [
       {
-        "type": "adj.",
-        "translation": "坚固的，坚牢的；坚定的，坚决的；严格的；确定的"
-      },
-      {
-        "type": "vt.",
-        "translation": "& vi.使坚固；使坚实"
-      },
-      {
         "type": "n.",
-        "translation": "商号，商行；公司；企业；工作集体"
+        "translation": "商号，商行；公司；企业；事务所"
       },
       {
-        "type": "adv.",
-        "translation": "坚定地，稳固地"
+        "type": "adj.",
+        "translation": "坚固的，坚牢的；坚定的，坚决的"
       },
       {
-        "type": "vt.",
-        "translation": "使坚定，使牢固"
-      },
-      {
-        "type": "vi.",
-        "translation": "变坚实，变稳固"
+        "type": "vt.&vi.",
+        "translation": "使坚固；使坚实"
       }
     ],
-    "example": "an advertising firm",
-    "example_trans": "一个广告公司",
+    "example": "She was hired as a senior consultant at an international accounting firm.",
+    "example_trans": "她被一家国际会计师事务所（公司）聘为高级顾问。",
     "exam_hits": 11,
     "category": "商业、公司与经营",
     "frequency": 0.751473317917224,
@@ -33628,20 +33556,16 @@
     "definition": "n.天气， 气象,暴风雨\nvt.& vi.晒干， 风化\nvt.平安渡过， 挨过,[地]使风化",
     "pos_items": [
       {
+        "type": "vt.",
+        "translation": "平安渡过，挨过（风暴、危机）；[地]使风化"
+      },
+      {
         "type": "n.",
-        "translation": "天气， 气象；暴风雨"
-      },
-      {
-        "type": "vt.",
-        "translation": "& vi.晒干， 风化"
-      },
-      {
-        "type": "vt.",
-        "translation": "平安渡过， 挨过；[地]使风化"
+        "translation": "天气，气象；暴风雨"
       }
     ],
-    "example": "weather the recession",
-    "example_trans": "安全渡过衰退期",
+    "example": "The exporter managed to weather the global financial crisis without layoffs.",
+    "example_trans": "该出口企业设法平安度过了全球金融危机而没有裁员。",
     "exam_hits": 2,
     "category": "天气、气候与自然现象",
     "frequency": 0.748271642929526,
@@ -33681,24 +33605,16 @@
     "definition": "n.春季,泉水，小溪,弹簧，弹性,跳跃\nvi.跳，跃,突然发出或出现,发源,劈开，裂开\nvt.突然跳出,跳过,使开裂\nadj.春天的,弹簧的，有弹性的",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "春季；泉水，小溪；弹簧，弹性；跳跃"
-      },
-      {
         "type": "vi.",
-        "translation": "跳，跃；突然发出或出现；发源；劈开，裂开"
+        "translation": "涌现；突然发生或出现；发源；跳，跃"
       },
       {
-        "type": "vt.",
-        "translation": "突然跳出；跳过；使开裂"
-      },
-      {
-        "type": "adj.",
-        "translation": "春天的；弹簧的，有弹性的"
+        "type": "n.",
+        "translation": "春季；泉水，小溪；弹簧，弹性"
       }
     ],
-    "example": "the hot spring",
-    "example_trans": "温泉",
+    "example": "Hundreds of technology startups have sprung up across the metropolitan area.",
+    "example_trans": "数百家科技初创公司在大都市区如雨后春笋般迅速涌现。",
     "exam_hits": 1,
     "category": "时间、日期与时期",
     "frequency": 0.748116108358902,
@@ -34362,16 +34278,16 @@
     "definition": "n.胃,腹部,食欲,欲望\nvt.容忍,吃…吃得津津有味,〈古〉对…发怒",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "胃；腹部；食欲；欲望"
+        "type": "vt.",
+        "translation": "容忍；承受；咽得下"
       },
       {
-        "type": "vt.",
-        "translation": "容忍；吃…吃得津津有味；〈古〉对…发怒"
+        "type": "n.",
+        "translation": "胃；腹部"
       }
     ],
-    "example": "The stomach breaks down food with acids.",
-    "example_trans": "胃用酸分解食物。",
+    "example": "Few voters could stomach the government's proposed sharp increases in property taxes.",
+    "example_trans": "很少有选民能够容忍承受政府拟议的大幅上调房产税。",
     "exam_hits": 0,
     "category": "人体部位与生理机能",
     "frequency": 0.745801514324448,
@@ -36577,16 +36493,16 @@
     "definition": "n.肩膀,（衣服的）肩部,山肩,路肩\nvt.担负，承担,肩起，挑起,用肩顶…",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "肩膀；（衣服的）肩部；山肩；路肩"
+        "type": "vt.",
+        "translation": "担负；承担（责任、重担）"
       },
       {
-        "type": "vt.",
-        "translation": "担负，承担；肩起，挑起；用肩顶…"
+        "type": "n.",
+        "translation": "肩膀；肩部"
       }
     ],
-    "example": "She carried the heavy bag on her shoulder.",
-    "example_trans": "她把沉重的包背在肩上。",
+    "example": "Developed nations must shoulder greater responsibility for cutting greenhouse emissions.",
+    "example_trans": "发达国家必须为削减温室气体排放承担担负起更大的责任。",
     "exam_hits": 0,
     "category": "人体部位与生理机能",
     "frequency": 0.736872783906841,
@@ -37602,27 +37518,19 @@
     "pos_items": [
       {
         "type": "adj.",
-        "translation": "平的；单调的；不景气的；干脆的"
+        "translation": "断然的，坚决的；平的；不景气的"
       },
       {
         "type": "adv.",
-        "translation": "（尤指贴着另一表面）平直地；断然地；水平地；直接地，完全地"
+        "translation": "断然地；直接地，完全地"
       },
       {
         "type": "n.",
-        "translation": "平地；公寓；平面"
-      },
-      {
-        "type": "vt.",
-        "translation": "使变平；[音乐]使（音调）下降，尤指降半音"
-      },
-      {
-        "type": "vi.",
-        "translation": "逐渐变平；[音乐]以降调唱（或奏）"
+        "translation": "公寓；平地"
       }
     ],
-    "example": "a flat fee of car hire",
-    "example_trans": "固定的租车费",
+    "example": "The spokesperson issued a flat denial of the corruption allegations.",
+    "example_trans": "发言人对腐败指控发表了断然坚决的否认。",
     "exam_hits": 2,
     "category": "形状、尺寸与度量",
     "frequency": 0.731755676589325,
@@ -39388,15 +39296,15 @@
     "pos_items": [
       {
         "type": "n.",
-        "translation": "植物，草木；设备；工厂；庄稼"
+        "translation": "工厂；车间；发电厂；植物，草木"
       },
       {
         "type": "vt.",
-        "translation": "种植；安，插；建设，布置；移民于"
+        "translation": "种植；安，插；建设，布置"
       }
     ],
-    "example": "The new plant will create hundreds of local jobs.",
-    "example_trans": "新工厂将为当地创造数百个就业岗位。",
+    "example": "The chemical manufacturing plant was closed down for environmental violations.",
+    "example_trans": "该化学制造工厂因违反环保规定而被勒令关闭。",
     "exam_hits": 0,
     "category": "生物、动物与植物",
     "frequency": 0.724366072794683,
@@ -42314,16 +42222,16 @@
     "definition": "n.镜子，反光镜,真实的写照,反映，借鉴,榜样\nvt.反映,反射",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "镜子，反光镜；真实的写照；反映，借鉴；榜样"
+        "type": "vt.",
+        "translation": "折射，反映；映照"
       },
       {
-        "type": "vt.",
-        "translation": "反映；反射"
+        "type": "n.",
+        "translation": "镜子；真实写照"
       }
     ],
-    "example": "That speech mirrored his thoughts.",
-    "example_trans": "那个演讲反映了他的思想。",
+    "example": "Changes in consumer spending patterns mirror underlying demographic shifts.",
+    "example_trans": "消费者支出模式的改变折射反映了深层次的人口结构转变。",
     "exam_hits": 2,
     "category": "房间、家具与家居用品",
     "frequency": 0.713814290612784,
@@ -43539,16 +43447,16 @@
     "definition": "n.频道，波道,渠道,途径,海峡\nvt.引导，开导,形成河道",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "频道，波道；渠道；途径；海峡"
+        "type": "vt.",
+        "translation": "引导；把…引向；输入"
       },
       {
-        "type": "vt.",
-        "translation": "引导，开导；形成河道"
+        "type": "n.",
+        "translation": "渠道；海峡；频道"
       }
     ],
-    "example": "the proper channels",
-    "example_trans": "正当的途径",
+    "example": "The fiscal policy channels substantial investments into clean energy industries.",
+    "example_trans": "财政政策将大量投资引导注入到清洁能源产业中。",
     "exam_hits": 2,
     "category": "通讯、邮政与联络",
     "frequency": 0.709738947310232,
@@ -44313,16 +44221,16 @@
     "definition": "n.时尚，时装,时装领域，时尚界,方式，方法\nvt.制作，塑造,使适应",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "时尚，时装；时装领域，时尚界；方式，方法"
+        "type": "vt.",
+        "translation": "塑造；制作；形成"
       },
       {
-        "type": "vt.",
-        "translation": "制作，塑造；使适应"
+        "type": "n.",
+        "translation": "时尚；方式，样式"
       }
     ],
-    "example": "fashion a policy",
-    "example_trans": "制定政策",
+    "example": "Researchers fashioned a miniature prosthetic limb using advanced 3D printing.",
+    "example_trans": "研究人员利用先进的3D打印技术塑造制作出一个微型假肢。",
     "exam_hits": 5,
     "category": "外貌、服饰与打扮",
     "frequency": 0.706310058765224,
@@ -46142,16 +46050,16 @@
     "definition": "n.句子,宣判\nvt.宣判，判决",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "句子；宣判"
+        "type": "vt.",
+        "translation": "判决；判处（刑罚）"
       },
       {
-        "type": "vt.",
-        "translation": "宣判，判决"
+        "type": "n.",
+        "translation": "句子；判决，宣判"
       }
     ],
-    "example": "The judge read the sentence to the defendant.",
-    "example_trans": "法官向被告宣读判决。",
+    "example": "The criminal court sentenced the corporate embezzler to eight years in prison.",
+    "example_trans": "刑事法庭判处这名企业职务侵占者八年有期徒刑。",
     "exam_hits": 0,
     "category": "语言、文字与符号",
     "frequency": 0.699226502206118,
@@ -47163,24 +47071,20 @@
     "definition": "v.表达,表示,显而易见,快递邮寄\nadj.特快的,迅速的,用快递寄送的, 明确的\nn.特快列车,快递服务\nadv.使用快速服务",
     "pos_items": [
       {
-        "type": "v.",
-        "translation": "表达；表示；显而易见；快递邮寄"
+        "type": "adj.",
+        "translation": "明确的，清楚的；特快的；迅速的"
       },
       {
-        "type": "adj.",
-        "translation": "特快的；迅速的；用快递寄送的； 明确的"
+        "type": "v.",
+        "translation": "表达；表示"
       },
       {
         "type": "n.",
-        "translation": "特快列车；快递服务"
-      },
-      {
-        "type": "adv.",
-        "translation": "使用快速服务"
+        "translation": "特快专递；特快列车"
       }
     ],
-    "example": "Many researchers express concern about the rapid pace of change.",
-    "example_trans": "许多研究人员对变化的快速步伐表示担忧。",
+    "example": "The donor gave the scholarship with the express condition that recipients serve rural areas.",
+    "example_trans": "捐赠人设立该奖学金附带有明确具体的条件，即获得者须在乡村地区服务。",
     "exam_hits": 0,
     "category": "说、讲与口头表达",
     "frequency": 0.695379443612551,
@@ -48407,20 +48311,16 @@
     "definition": "n.冠军,捍卫者，拥护者,战士\nvt.为…而斗争，捍卫，声援\nadj.优胜的,第一流的",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "冠军；捍卫者，拥护者；战士"
-      },
-      {
         "type": "vt.",
-        "translation": "为…而斗争，捍卫，声援"
+        "translation": "捍卫；极力支持；拥护"
       },
       {
-        "type": "adj.",
-        "translation": "优胜的；第一流的"
+        "type": "n.",
+        "translation": "拥护者；冠军"
       }
     ],
-    "example": "She became the world champion in swimming last year.",
-    "example_trans": "她去年成为了游泳世界冠军。",
+    "example": "The non-profit group champions the rights of low-income workers.",
+    "example_trans": "该非营利组织全力捍卫支持低收入劳动者的合法权益。",
     "exam_hits": 0,
     "category": "体育、运动与竞赛",
     "frequency": 0.691271338815495,
@@ -65636,19 +65536,15 @@
     "pos_items": [
       {
         "type": "n.",
-        "translation": "规模；比例（尺）；鱼鳞；级别"
+        "translation": "天平；秤；规模；鱼鳞"
       },
       {
         "type": "vt.",
-        "translation": "测量；攀登；刮去…的鳞片"
-      },
-      {
-        "type": "vi.",
-        "translation": "衡量；攀登；（鳞屑）脱落；生水垢"
+        "translation": "攀登；衡量"
       }
     ],
-    "example": "Children's self-concept Scale",
-    "example_trans": "儿童自我意识量表",
+    "example": "The sudden testimony tipped the scales of justice in favor of the defense.",
+    "example_trans": "突然出现的证词使正义的天平秤倒向了有利于辩方的一边。",
     "exam_hits": 7,
     "category": "形状、尺寸与度量",
     "frequency": 0.636909300696274,
@@ -70309,16 +70205,16 @@
     "definition": "n.（长篇）小说,[法]新法，附律\nadj.新奇的,异常的",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "（长篇）小说；[法]新法，附律"
+        "type": "adj.",
+        "translation": "新颖的，新奇的；创新的；与众不同的"
       },
       {
-        "type": "adj.",
-        "translation": "新奇的；异常的"
+        "type": "n.",
+        "translation": "（长篇）小说；[法]新法，附律"
       }
     ],
-    "example": "a novel experience",
-    "example_trans": "一段新奇的经历",
+    "example": "The research team developed a novel algorithm to predict market trends.",
+    "example_trans": "研究团队开发了一种用于预测市场趋势的新颖创新算法。",
     "exam_hits": 3,
     "category": "文学、戏剧与影视",
     "frequency": 0.622420473011398,
@@ -71105,16 +71001,16 @@
     "definition": "n.海港,海湾,避难所,躲藏处\nvt.& vi.心怀,庇护,避入安全地,（船）入港停泊",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "海港；海湾；避难所；躲藏处"
+        "type": "vt.",
+        "translation": "心怀，怀有（疑虑、仇恨等）；庇护"
       },
       {
-        "type": "vt.",
-        "translation": "& vi.心怀；庇护；避入安全地；（船）入港停泊"
+        "type": "n.",
+        "translation": "海港；港口；避难所"
       }
     ],
-    "example": "The city built a new harbor for trade.",
-    "example_trans": "这座城市为贸易建造了一个新港口。",
+    "example": "Economists harbor deep concerns about rising sovereign debt levels.",
+    "example_trans": "经济学家们对不断上升的主权债务水平心怀深切忧虑。",
     "exam_hits": 0,
     "category": "交通、运输与车辆",
     "frequency": 0.620458847250285,
@@ -71547,16 +71443,16 @@
     "definition": "vt.训练,使有纪律,处罚,使有条理\nn.训练,纪律,学科,符合行为准则的行为（或举止）",
     "pos_items": [
       {
-        "type": "vt.",
-        "translation": "训练；使有纪律；处罚；使有条理"
+        "type": "n.",
+        "translation": "学科，专业领域；纪律；训练"
       },
       {
-        "type": "n.",
-        "translation": "训练；纪律；学科；符合行为准则的行为（或举止）"
+        "type": "vt.",
+        "translation": "训练；惩罚"
       }
     ],
-    "example": "discipline a child",
-    "example_trans": "管教孩子",
+    "example": "Bioinformatics is an emerging discipline combining biology and computer science.",
+    "example_trans": "生物信息学是一门结合了生物学与计算机科学的新兴学科专业领域。",
     "exam_hits": 5,
     "category": "管理、组织与职场行为",
     "frequency": 0.618862661459603,
@@ -108468,16 +108364,16 @@
     "definition": "n.工资,报应\nvt.& vi.实行，进行，作（战等）,〈方〉雇佣,〈古〉打赌，抵押，担保",
     "pos_items": [
       {
-        "type": "n.",
-        "translation": "工资；报应"
+        "type": "vt.",
+        "translation": "发动；开展，进行（斗争、战争、运动）"
       },
       {
-        "type": "vt.",
-        "translation": "& vi.实行，进行，作（战等）；〈方〉雇佣；〈古〉打赌，抵押，担保"
+        "type": "n.",
+        "translation": "工资；报酬"
       }
     ],
-    "example": "wage demands",
-    "example_trans": "工资要求",
+    "example": "Public health officials are waging an aggressive campaign against smoking.",
+    "example_trans": "公共卫生官员正在开展发起一场针对吸烟的有力宣传攻势。",
     "exam_hits": 2,
     "category": "金钱、银行与金融",
     "frequency": 0.499177910822457,
@@ -111503,11 +111399,11 @@
     "pos_items": [
       {
         "type": "vt.",
-        "translation": "消耗，消费；耗尽，毁灭；吃光，喝光；烧毁"
+        "translation": "（被情绪、渴望等）吞噬；使着迷；消耗，消费"
       }
     ],
-    "example": "The dogs consume a bag of dog food each week.",
-    "example_trans": "狗狗们每周要吃完一袋狗粮。",
+    "example": "The young entrepreneur was consumed with ambition to transform the industry.",
+    "example_trans": "这位年轻的企业家被彻底颠覆该行业的雄心壮志所充斥吞噬。",
     "exam_hits": 9,
     "category": "贸易、市场与买卖",
     "frequency": 0.489822709812211,

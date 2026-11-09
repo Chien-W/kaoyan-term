@@ -69,8 +69,8 @@ func TestCanQuestion(t *testing.T) {
 		t.Logf("  [%s] %s (%s)", opt.Label, opt.Definition, opt.Word)
 	}
 
-	if !strings.Contains(correctOpt.Definition, "能") && !strings.Contains(correctOpt.Definition, "可以") {
-		t.Errorf("expected correct option for 'can' to contain primary meaning '能' or '可以', got: %s", correctOpt.Definition)
+	if !strings.Contains(correctOpt.Definition, "罐头") && !strings.Contains(correctOpt.Definition, "装") {
+		t.Errorf("expected correct option for 'can' to contain polysemy meaning '罐头' or '装', got: %s", correctOpt.Definition)
 	}
 }
 
