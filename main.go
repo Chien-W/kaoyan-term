@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -27,6 +28,7 @@ var (
 	flagReview    = flag.Bool("review", false, "practice today's due spaced repetition reviews only")
 	flagQuiz      = flag.Bool("quiz", false, "run multiple-choice quiz mode (英文选中文，形近词混淆测试)")
 	flagBatch     = flag.Int("batch", 5, "words per learning batch before triggering checkpoint quiz (default 5, 0 to disable)")
+	flagReveal    = flag.Bool("reveal", false, "display target word spelling upfront (passive preview mode)")
 )
 
 const (
@@ -277,6 +279,13 @@ WordLoop:
 						input += nextChar
 						renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					}
+					continue
+				}
+
+				// Ctrl+O (15): Peek target word spelling
+				if b == 15 {
+					flashNotice(currentMode, fmt.Sprintf("目标词偷瞄: %s (len=%d)", target, len(target)))
+					renderInputPrompt(currentMode, nonce, prog.CurrentIndex+1, len(bank.Words), item, input, target)
 					continue
 				}
 
@@ -760,28 +769,51 @@ func showQuizAnswerResult(mode ViewMode, isCorrect bool, userChoice int, q quiz.
 	}
 }
 
-func maskTargetWord(sentence, target string) string {
-	tLower := strings.ToLower(target)
-	words := strings.Fields(sentence)
-	var res []string
-	for _, w := range words {
-		clean := strings.ToLower(strings.Trim(w, ".,!?;:\"()[]"))
-		if clean == tLower || strings.HasPrefix(clean, tLower) {
-			res = append(res, "[____]")
-		} else {
-			res = append(res, w)
-		}
+func maskTargetWord(text, target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return text
 	}
-	return strings.Join(res, " ")
+	pattern := `(?i)\b` + regexp.QuoteMeta(target) + `(?:s|es|ed|d|ing|er|est)?\b`
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return text
+	}
+	return re.ReplaceAllString(text, "[____]")
+}
+
+func makeMaskedSlots(target string) string {
+	n := len(target)
+	if n <= 0 {
+		return "____"
+	}
+	parts := make([]string, n)
+	for i := 0; i < n; i++ {
+		parts[i] = "_"
+	}
+	return fmt.Sprintf("%s (len=%d)", strings.Join(parts, " "), n)
 }
 
 func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, prog *state.StudyProgress) {
 	w := item.Word
+	target := strings.ToLower(strings.TrimSpace(w.Word))
 	phonetic := w.USPhonetic
 	if phonetic == "" {
 		phonetic = w.UKPhonetic
 	}
 	progPct := float64(current) / float64(total) * 100
+
+	reveal := *flagReveal
+
+	displayWord := w.Word
+	if !reveal {
+		displayWord = makeMaskedSlots(target)
+	}
+
+	displayExample := w.Example
+	if !reveal && displayExample != "" {
+		displayExample = maskTargetWord(displayExample, target)
+	}
 
 	switch mode {
 	case ModeCard:
@@ -806,8 +838,8 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 		if phonetic != "" {
 			phoStr = fmt.Sprintf("/%s/", phonetic)
 		}
-		fmt.Printf("%s│%s  %s%-24s%s %s%-38s%s%s│%s\r\n",
-			colorCyan, colorReset, colorBold, w.Word, colorReset, colorYellow, phoStr, colorReset, colorCyan, colorReset)
+		fmt.Printf("%s│%s  %s%-28s%s %s%-34s%s%s│%s\r\n",
+			colorCyan, colorReset, colorBold, displayWord, colorReset, colorYellow, phoStr, colorReset, colorCyan, colorReset)
 		fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
 
 		// POS Items
@@ -830,12 +862,12 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 		}
 
 		// Example Sentence
-		if w.Example != "" {
+		if displayExample != "" {
 			fmt.Printf("%s│%s                                                                  %s│%s\r\n", colorCyan, colorReset, colorCyan, colorReset)
 			fmt.Printf("%s│%s  %s【真题/语境例句】%s                                                    %s│%s\r\n",
 				colorCyan, colorReset, colorGreen, colorReset, colorCyan, colorReset)
 
-			exLine := fmt.Sprintf("    en: %s", w.Example)
+			exLine := fmt.Sprintf("    en: %s", displayExample)
 			exLine = truncateToVisualWidth(exLine, 64)
 			fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, exLine, colorCyan, colorReset)
 
@@ -852,6 +884,9 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 			fmt.Printf("%s│%s  %s【考点搭配】%s                                                        %s│%s\r\n",
 				colorCyan, colorReset, colorPurple, colorReset, colorCyan, colorReset)
 			for _, phr := range w.Phrases[:min(2, len(w.Phrases))] {
+				if !reveal {
+					phr = maskTargetWord(phr, target)
+				}
 				phrLine := fmt.Sprintf("    • %s", phr)
 				phrLine = truncateToVisualWidth(phrLine, 64)
 				fmt.Printf("%s│%s  %-64s%s│%s\r\n", colorCyan, colorReset, phrLine, colorCyan, colorReset)
@@ -859,11 +894,18 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 		}
 
 		fmt.Printf("%s└%s┘%s\r\n", colorCyan, border, colorReset)
-		fmt.Printf("%s  [空格] 发音 | [Tab] 提示 | [Ctrl+Q] 即时测验 | [Ctrl+K] 秒杀 | [Ctrl+T] 伪装 | [Esc] 退出%s\r\n", colorGray, colorReset)
+		fmt.Printf("%s  [空格] 发音 | [Tab] 提示 | [Ctrl+O] 偷瞄 | [Ctrl+Q] 测验 | [Ctrl+K] 秒杀 | [Esc] 退出%s\r\n", colorGray, colorReset)
 
 	case ModeTest:
-		fmt.Printf("\r\n=== RUN   TestMetricCollector/QueryPoint_%04d [%s] /%s/\r\n",
-			current, w.Word, phonetic)
+		phoStr := ""
+		if phonetic != "" {
+			phoStr = fmt.Sprintf("/%s/", phonetic)
+		}
+		if reveal {
+			fmt.Printf("\r\n=== RUN   TestMetricCollector/QueryPoint_%04d [%s] %s\r\n", current, w.Word, phoStr)
+		} else {
+			fmt.Printf("\r\n=== RUN   TestMetricCollector/QueryPoint_%04d [len=%d] %s\r\n", current, len(target), phoStr)
+		}
 
 		// Multi-line POS
 		if len(w.POSItems) > 0 {
@@ -879,8 +921,8 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 		}
 
 		// Example
-		if w.Example != "" {
-			fmt.Printf("    collector_test.go:44: [example] %s\r\n", w.Example)
+		if displayExample != "" {
+			fmt.Printf("    collector_test.go:44: [example] %s\r\n", displayExample)
 			if w.ExampleTrans != "" {
 				fmt.Printf("    collector_test.go:45: [translate] %s\r\n", w.ExampleTrans)
 			}
@@ -888,7 +930,11 @@ func renderWordHeader(mode ViewMode, nonce, current, total int, item StudyItem, 
 
 		// Phrase
 		if len(w.Phrases) > 0 {
-			fmt.Printf("    collector_test.go:46: [phrase] %s\r\n", w.Phrases[0])
+			phr := w.Phrases[0]
+			if !reveal {
+				phr = maskTargetWord(phr, target)
+			}
+			fmt.Printf("    collector_test.go:46: [phrase] %s\r\n", phr)
 		}
 
 	case ModeLog:

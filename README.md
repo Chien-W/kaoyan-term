@@ -21,8 +21,10 @@ A high-performance terminal vocabulary learning CLI designed for the 2027 Chines
 - **No Overlapping Audio**: Audio process lifecycle managed via Context cancellation.
 - **Bilingual Earphone Audio**: Plays native US pronunciation followed by concise Chinese definition directly into earphones.
 - **Interactive Workflow**:
+  - `[Active Recall]`: Target word is strictly masked (`[len=N]` / `_ _ _ _`) in headers, example sentences (`[____]`), and collocations until successfully typed.
   - `[Letters]`: Freely type tokens with real-time cyan/red feedback.
   - `[Tab]` or `[?]`: Hints the next letter without advancing words.
+  - `[Ctrl+O]`: Peeks target spelling if stuck.
   - `[Enter]`: Submits and validates token (`status=200` pass vs `status=401 retry`).
   - `[Ctrl+K]`: Permanently bypasses/kills simple words (斩词秒杀).
   - `[Space]`: Replays bilingual pronunciation in headphones.
