@@ -26,6 +26,8 @@ type Engine struct {
 	bank     *vocab.Bank
 	wordMap  map[string]vocab.Word
 	wordList []string
+	posPool  []int
+	lastPos  int
 }
 
 func NewEngine(bank *vocab.Bank) *Engine {
@@ -44,7 +46,26 @@ func NewEngine(bank *vocab.Bank) *Engine {
 		bank:     bank,
 		wordMap:  wordMap,
 		wordList: wordList,
+		posPool:  nil,
+		lastPos:  -1,
 	}
+}
+
+func (e *Engine) nextBalancedPos() int {
+	if len(e.posPool) == 0 {
+		p := []int{0, 1, 2, 3}
+		rand.Shuffle(len(p), func(i, j int) {
+			p[i], p[j] = p[j], p[i]
+		})
+		if e.lastPos >= 0 && p[0] == e.lastPos {
+			p[0], p[len(p)-1] = p[len(p)-1], p[0]
+		}
+		e.posPool = p
+	}
+	pos := e.posPool[0]
+	e.posPool = e.posPool[1:]
+	e.lastPos = pos
+	return pos
 }
 
 type candidate struct {
@@ -117,47 +138,46 @@ func (e *Engine) GenerateQuestion(target vocab.Word) Question {
 		}
 	}
 
-	type rawOpt struct {
-		word        string
-		isCorrect   bool
-		isConfusing bool
-	}
-
-	rawOptions := []rawOpt{
-		{word: tStr, isCorrect: true, isConfusing: false},
-		{word: distractorWords[0], isCorrect: false, isConfusing: true},
-		{word: distractorWords[1], isCorrect: false, isConfusing: true},
-		{word: distractorWords[2], isCorrect: false, isConfusing: true},
-	}
-
-	// Shuffle options
-	rand.Shuffle(len(rawOptions), func(i, j int) {
-		rawOptions[i], rawOptions[j] = rawOptions[j], rawOptions[i]
+	// Shuffle distractor words
+	rand.Shuffle(len(distractorWords), func(i, j int) {
+		distractorWords[i], distractorWords[j] = distractorWords[j], distractorWords[i]
 	})
+
+	correctIdx := e.nextBalancedPos()
 
 	labels := []string{"A", "B", "C", "D"}
 	options := make([]Option, 4)
-	correctIdx := 0
 
-	for i, ro := range rawOptions {
-		wItem, ok := e.wordMap[ro.word]
+	dIdx := 0
+	for i := 0; i < 4; i++ {
+		var wordStr string
+		var isCorrect, isConfusing bool
+
+		if i == correctIdx {
+			wordStr = tStr
+			isCorrect = true
+			isConfusing = false
+		} else {
+			wordStr = distractorWords[dIdx]
+			dIdx++
+			isCorrect = false
+			isConfusing = true
+		}
+
+		wItem, ok := e.wordMap[wordStr]
 		def := ""
 		if ok {
 			def = formatOptionDefinition(wItem)
 		} else {
-			def = ro.word
-		}
-
-		if ro.isCorrect {
-			correctIdx = i
+			def = wordStr
 		}
 
 		options[i] = Option{
 			Label:       labels[i],
-			Word:        ro.word,
+			Word:        wordStr,
 			Definition:  def,
-			IsCorrect:   ro.isCorrect,
-			IsConfusing: ro.isConfusing,
+			IsCorrect:   isCorrect,
+			IsConfusing: isConfusing,
 		}
 	}
 

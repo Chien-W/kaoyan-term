@@ -38,3 +38,22 @@ func TestEngine(t *testing.T) {
 		}
 	}
 }
+
+func TestAnswerDistribution(t *testing.T) {
+	bank, err := vocab.LoadBank()
+	if err != nil {
+		t.Fatalf("failed to load bank: %v", err)
+	}
+	engine := NewEngine(bank)
+	counts := make(map[string]int)
+	var seq []string
+	for i := 0; i < 30; i++ {
+		w := bank.Words[i+200]
+		q := engine.GenerateQuestion(w)
+		lbl := q.Options[q.CorrectIndex].Label
+		counts[lbl]++
+		seq = append(seq, lbl)
+	}
+	t.Logf("Sequence of answers: %v", seq)
+	t.Logf("Counts: %+v", counts)
+}
