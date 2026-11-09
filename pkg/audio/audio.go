@@ -88,20 +88,38 @@ func (p *Player) runPlay(ctx context.Context, word, definition string) {
 		return
 	}
 
-	// 1. Play English audio
 	cleanWord := strings.ToLower(word)
 	fileName := fmt.Sprintf("%s_t%d.mp3", cleanWord, p.accent)
 	filePath := filepath.Join(p.cacheDir, fileName)
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	// Check if file exists and has valid size
+	fi, statErr := os.Stat(filePath)
+	if statErr == nil && fi.Size() == 0 {
+		_ = os.Remove(filePath)
+		statErr = os.ErrNotExist
+	}
+
+	// 1. Download English MP3 if missing
+	if os.IsNotExist(statErr) {
 		apiURL := fmt.Sprintf("https://dict.youdao.com/dictvoice?audio=%s&type=%d", url.QueryEscape(cleanWord), p.accent)
-		resp, err := p.client.Get(apiURL)
-		if err == nil && resp.StatusCode == http.StatusOK {
-			defer resp.Body.Close()
-			f, err := os.Create(filePath)
-			if err == nil {
-				io.Copy(f, resp.Body)
-				f.Close()
+		req, reqErr := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if reqErr == nil {
+			resp, getErr := p.client.Do(req)
+			if getErr == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					tmpFile := filePath + ".tmp"
+					f, createErr := os.Create(tmpFile)
+					if createErr == nil {
+						written, copyErr := io.Copy(f, resp.Body)
+						f.Close()
+						if copyErr == nil && written > 256 {
+							_ = os.Rename(tmpFile, filePath)
+						} else {
+							_ = os.Remove(tmpFile)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -113,7 +131,7 @@ func (p *Player) runPlay(ctx context.Context, word, definition string) {
 	}
 
 	// Play English MP3 using afplay with context cancellation
-	if _, err := os.Stat(filePath); err == nil {
+	if fi, err := os.Stat(filePath); err == nil && fi.Size() > 256 {
 		cmd := exec.CommandContext(ctx, "afplay", filePath)
 		_ = cmd.Run()
 	} else {
@@ -121,14 +139,12 @@ func (p *Player) runPlay(ctx context.Context, word, definition string) {
 		_ = cmd.Run()
 	}
 
+	// Context-aware sleep between English and Chinese
 	select {
 	case <-ctx.Done():
 		return
-	default:
+	case <-time.After(150 * time.Millisecond):
 	}
-
-	// Short pause between English and Chinese
-	time.Sleep(150 * time.Millisecond)
 
 	// 2. Play Chinese definition in headphones (Tingting voice)
 	shortDef := extractShortChinese(definition)

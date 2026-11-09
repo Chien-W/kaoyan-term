@@ -162,6 +162,14 @@ func main() {
 		}
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			restoreTerminal(false)
+			_ = prog.Save()
+			fmt.Fprintf(os.Stderr, "\r\nrecovered from panic: %v\r\n", r)
+		}
+	}()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -235,7 +243,22 @@ WordLoop:
 				b := buf[i]
 
 				// Esc (27) or Ctrl+C (3): Boss Key instant clear and exit
-				if b == 27 || b == 3 {
+				if b == 27 {
+					// Check if this is an ANSI escape sequence (e.g. arrow keys \033[A, \033[B)
+					if i+1 < n && (buf[i+1] == '[' || buf[i+1] == 'O') {
+						i += 2
+						for i < n && ((buf[i] >= '0' && buf[i] <= '9') || buf[i] == ';') {
+							i++
+						}
+						continue
+					}
+					// Standalone Esc -> Boss key instant clear and exit
+					restoreTerminal(true)
+					prog.Save()
+					return
+				}
+
+				if b == 3 { // Ctrl+C
 					restoreTerminal(true)
 					prog.Save()
 					return
@@ -402,6 +425,7 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 	correctCount := 0
 
 	for qIdx, w := range shuffled {
+		drainStdin()
 		q := quizEngine.GenerateQuestion(w)
 		player.PlayAsync(w.Word, w.Definition)
 
@@ -419,7 +443,15 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 			b := buf[0]
 
 			// Esc / Ctrl+C
-			if b == 27 || b == 3 {
+			if b == 27 {
+				if n > 1 && (buf[1] == '[' || buf[1] == 'O') {
+					continue // Ignore arrow keys
+				}
+				restoreTerminal(true)
+				prog.Save()
+				os.Exit(0)
+			}
+			if b == 3 {
 				restoreTerminal(true)
 				prog.Save()
 				os.Exit(0)
@@ -466,7 +498,15 @@ func runCheckpointQuiz(words []vocab.Word, quizEngine *quiz.Engine, player *audi
 			for {
 				n, err := os.Stdin.Read(buf)
 				if err == nil && n > 0 {
-					if buf[0] == 27 || buf[0] == 3 {
+					if buf[0] == 27 {
+						if n > 1 && (buf[1] == '[' || buf[1] == 'O') {
+							continue
+						}
+						restoreTerminal(true)
+						prog.Save()
+						os.Exit(0)
+					}
+					if buf[0] == 3 {
 						restoreTerminal(true)
 						prog.Save()
 						os.Exit(0)
@@ -526,6 +566,7 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 			return
 		}
 
+		drainStdin()
 		w := queue[qIdx].Word
 		q := quizEngine.GenerateQuestion(w)
 		player.PlayAsync(w.Word, w.Definition)
@@ -540,7 +581,15 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 			}
 			b := buf[0]
 
-			if b == 27 || b == 3 {
+			if b == 27 {
+				if n > 1 && (buf[1] == '[' || buf[1] == 'O') {
+					continue
+				}
+				restoreTerminal(true)
+				prog.Save()
+				os.Exit(0)
+			}
+			if b == 3 {
 				restoreTerminal(true)
 				prog.Save()
 				os.Exit(0)
@@ -579,7 +628,15 @@ func runStandaloneQuiz(queue []StudyItem, quizEngine *quiz.Engine, player *audio
 			for {
 				n, err := os.Stdin.Read(buf)
 				if err == nil && n > 0 {
-					if buf[0] == 27 || buf[0] == 3 {
+					if buf[0] == 27 {
+						if n > 1 && (buf[1] == '[' || buf[1] == 'O') {
+							continue
+						}
+						restoreTerminal(true)
+						prog.Save()
+						os.Exit(0)
+					}
+					if buf[0] == 3 {
 						restoreTerminal(true)
 						prog.Save()
 						os.Exit(0)
@@ -964,4 +1021,17 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func drainStdin() {
+	fd := int(os.Stdin.Fd())
+	_ = syscall.SetNonblock(fd, true)
+	var tmp [128]byte
+	for {
+		n, err := os.Stdin.Read(tmp[:])
+		if err != nil || n == 0 {
+			break
+		}
+	}
+	_ = syscall.SetNonblock(fd, false)
 }

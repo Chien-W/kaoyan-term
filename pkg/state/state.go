@@ -70,7 +70,12 @@ func (p *StudyProgress) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(stateFilePath(), data, 0644)
+	targetPath := stateFilePath()
+	tmpPath := fmt.Sprintf("%s.%d.tmp", targetPath, time.Now().UnixNano())
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, targetPath)
 }
 
 // MarkMastered permanently kills a simple word (斩词/秒杀)
